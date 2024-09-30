@@ -7,7 +7,7 @@
 modLoader="javafml" #mandatory
 
 # A version range to match for said mod loader - for regular FML @Mod it will be the minecraft version (without the 1.)
-loaderVersion="[14,)" #mandatory
+loaderVersion="${loader_version_range}" #mandatory
 
 # A URL to query for updates for this mod. See the JSON update specification <here>
 #updateJSONURL="" #optional
@@ -16,7 +16,7 @@ loaderVersion="[14,)" #mandatory
 issueTrackerURL="https://github.com/p3pp3rF1y/reliquary/issues" #optional
 
 # A URL for the "homepage" for this mod, displayed in the mod UI
-displayURL="https://www.curseforge.com/minecraft/mc-mods/reliquary-v1-3" #optional
+displayURL="https://www.curseforge.com/minecraft/mc-mods/reliquary-reincarnations" #optional
 
 # License
 license="GNU General Public License v3.0"
@@ -37,7 +37,7 @@ authors="x3n0ph0b3, TheMike, P3pp3rF1y" #optional
 modId="reliquary" #mandatory
 
 # The version number of the mod
-version="project_version" #mandatory
+version="${mod_full_version}" #mandatory
 
 # A display name for the mod
 displayName="Reliquary" #mandatory
@@ -51,7 +51,7 @@ Two words: magical swag. Oh, and a gun.
 [[dependencies.reliquary]]
     modId="forge" #mandatory
     mandatory=true #mandatory
-    versionRange="[36.1.3,)" #mandatory
+    versionRange="${neo_version_range}" #mandatory
     # An ordering relationship for the dependency - BEFORE or AFTER required if the relationship is not mandatory
     ordering="NONE"
     # Side this dependency is applied on - BOTH, CLIENT or SERVER
