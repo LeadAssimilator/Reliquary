@@ -88,7 +88,7 @@ public class MobCharmItem extends ItemBase {
 	}
 
 	private void onEntityTargetedEvent(LivingChangeTargetEvent event) {
-		if (!(event.getNewTarget() instanceof Player player) || event.getNewTarget() instanceof FakePlayer ||
+		if (event.getEntity().level().isClientSide() || !(event.getNewTarget() instanceof Player player) || event.getNewTarget() instanceof FakePlayer ||
 				!(event.getEntity() instanceof Mob entity)) {
 			return;
 		}
