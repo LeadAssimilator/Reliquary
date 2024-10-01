@@ -17,9 +17,9 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import reliquary.init.ModItems;
 import reliquary.items.AlkahestryTomeItem;
-import reliquary.reference.Settings;
 
 import javax.annotation.Nullable;
+import java.util.stream.Stream;
 
 public class AlkahestryCraftingRecipe implements CraftingRecipe {
 	private final Ingredient craftingIngredient;
@@ -33,7 +33,7 @@ public class AlkahestryCraftingRecipe implements CraftingRecipe {
 		this.id = id;
 		this.craftingIngredient = craftingIngredient;
 		this.chargeNeeded = chargeNeeded;
-		tomeIngredient = Ingredient.of(AlkahestryTomeItem.setCharge(new ItemStack(ModItems.ALKAHESTRY_TOME.get()), Settings.COMMON.items.alkahestryTome.chargeLimit.get()));
+		tomeIngredient = new TomeIngredient(chargeNeeded);
 		this.resultCount = resultCount;
 
 		AlkahestryRecipeRegistry.registerCraftingRecipe(this);
@@ -51,7 +51,7 @@ public class AlkahestryCraftingRecipe implements CraftingRecipe {
 				if (craftingIngredient.test(slotStack)) {
 					inRecipe = true;
 					hasIngredient = true;
-				} else if (!hasTome && slotStack.getItem() == ModItems.ALKAHESTRY_TOME.get() && AlkahestryTomeItem.getCharge(slotStack) >= chargeNeeded) {
+				} else if (!hasTome && tomeIngredient.test(slotStack)) {
 					inRecipe = true;
 					hasTome = true;
 				}
@@ -180,6 +180,20 @@ public class AlkahestryCraftingRecipe implements CraftingRecipe {
 			recipe.craftingIngredient.toNetwork(buffer);
 			buffer.writeInt(recipe.chargeNeeded);
 			buffer.writeInt(recipe.resultCount);
+		}
+	}
+
+	private static class TomeIngredient extends Ingredient {
+		private final int chargeNeeded;
+
+		private TomeIngredient(int chargeNeeded) {
+			super(Stream.of(new Ingredient.ItemValue(AlkahestryTomeItem.setCharge(new ItemStack(ModItems.ALKAHESTRY_TOME.get()), chargeNeeded))));
+			this.chargeNeeded = chargeNeeded;
+		}
+
+		@Override
+		public boolean test(@Nullable ItemStack stack) {
+			return stack != null && stack.is(ModItems.ALKAHESTRY_TOME.get()) && AlkahestryTomeItem.getCharge(stack) >= chargeNeeded;
 		}
 	}
 }

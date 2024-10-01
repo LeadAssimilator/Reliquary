@@ -19,6 +19,7 @@ import reliquary.init.ModItems;
 import reliquary.items.AlkahestryTomeItem;
 
 import javax.annotation.Nullable;
+import java.util.stream.Stream;
 
 public class AlkahestryChargingRecipe implements CraftingRecipe {
 	private final Ingredient chargingIngredient;
@@ -31,7 +32,7 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 		this.id = id;
 		this.chargingIngredient = chargingIngredient;
 		this.chargeToAdd = chargeToAdd;
-		tomeIngredient = Ingredient.of(AlkahestryTomeItem.setCharge(new ItemStack(ModItems.ALKAHESTRY_TOME.get()), 0));
+		tomeIngredient = new TomeIngredient(chargeToAdd);
 
 		recipeOutput = new ItemStack(ModItems.ALKAHESTRY_TOME.get());
 		AlkahestryTomeItem.addCharge(recipeOutput, chargeToAdd);
@@ -41,8 +42,8 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 
 	@Override
 	public boolean matches(CraftingContainer inv, Level worldIn) {
-		boolean hasTome = false;
-		boolean hasIngredient = false;
+		ItemStack tome = ItemStack.EMPTY;
+		int numberOfIngredients = 0;
 
 		for (int x = 0; x < inv.getContainerSize(); x++) {
 			ItemStack slotStack = inv.getItem(x);
@@ -51,10 +52,10 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 				boolean inRecipe = false;
 				if (chargingIngredient.test(slotStack)) {
 					inRecipe = true;
-					hasIngredient = true;
-				} else if (!hasTome && slotStack.getItem() == ModItems.ALKAHESTRY_TOME.get() && AlkahestryTomeItem.getCharge(slotStack) + chargeToAdd <= AlkahestryTomeItem.getChargeLimit()) {
+					numberOfIngredients++;
+				} else if (tome.isEmpty()) {
 					inRecipe = true;
-					hasTome = true;
+					tome = slotStack;
 				}
 
 				if (!inRecipe) {
@@ -63,7 +64,7 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 			}
 		}
 
-		return hasIngredient && hasTome;
+		return numberOfIngredients > 0 && tome.is(ModItems.ALKAHESTRY_TOME.get()) && AlkahestryTomeItem.getCharge(tome) + chargeToAdd * numberOfIngredients <= AlkahestryTomeItem.getChargeLimit();
 	}
 
 	@Override
@@ -155,6 +156,25 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 		public void toNetwork(FriendlyByteBuf buffer, AlkahestryChargingRecipe recipe) {
 			recipe.chargingIngredient.toNetwork(buffer);
 			buffer.writeInt(recipe.chargeToAdd);
+		}
+	}
+
+	private static class TomeIngredient extends Ingredient {
+		private final int chargeToAdd;
+
+		private TomeIngredient(int chargeToAdd) {
+			super(Stream.of(new Ingredient.ItemValue(new ItemStack(ModItems.ALKAHESTRY_TOME.get()))));
+			this.chargeToAdd = chargeToAdd;
+		}
+
+		@Override
+		public boolean test(ItemStack stack) {
+			return stack.is(ModItems.ALKAHESTRY_TOME.get()) && AlkahestryTomeItem.getCharge(stack) + chargeToAdd <= AlkahestryTomeItem.getChargeLimit();
+		}
+
+		@Override
+		public boolean isSimple() {
+			return false;
 		}
 	}
 }
