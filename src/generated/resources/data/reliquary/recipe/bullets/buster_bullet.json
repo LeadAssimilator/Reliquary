@@ -1,0 +1,42 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:bullets/concussive_bullet"
+    },
+    {
+      "item": "reliquary:catalyzing_gland"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "id": "reliquary:bullets/buster_bullet"
+  }
+}

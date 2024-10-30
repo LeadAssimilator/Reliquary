@@ -1,0 +1,29 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "c:glass_blocks"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "S": {
+      "tag": "c:stones"
+    }
+  },
+  "pattern": [
+    "I I",
+    "IGI",
+    "SIS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:magazines/empty_magazine"
+  }
+}

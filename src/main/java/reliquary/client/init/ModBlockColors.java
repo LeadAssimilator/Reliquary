@@ -1,6 +1,6 @@
 package reliquary.client.init;
 
-import net.minecraftforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import reliquary.blocks.tile.ApothecaryCauldronBlockEntity;
 import reliquary.init.ModBlocks;
 
@@ -9,9 +9,9 @@ public class ModBlockColors {
 	}
 
 	public static void registerBlockColors(RegisterColorHandlersEvent.Block event) {
-		event.register((state, world, pos, tintIndex) -> {
-			if (world != null && pos != null) {
-				ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) world.getBlockEntity(pos);
+		event.register((state, level, pos, tintIndex) -> {
+			if (level != null && pos != null) {
+				ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) level.getBlockEntity(pos);
 				if (cauldron != null && cauldron.getLiquidLevel() > 0) {
 					return cauldron.getColorMultiplier();
 				}

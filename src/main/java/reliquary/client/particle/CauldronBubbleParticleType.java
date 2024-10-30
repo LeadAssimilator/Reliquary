@@ -1,15 +1,24 @@
 package reliquary.client.particle;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import reliquary.client.init.ModParticles;
 
-public class CauldronBubbleParticleType extends ParticleType<BubbleColorParticleData> {
+public class CauldronBubbleParticleType extends ParticleType<ColorParticleOption> {
 	public CauldronBubbleParticleType() {
-		super(false, BubbleColorParticleData.DESERIALIZER);
+		super(false);
 	}
 
 	@Override
-	public Codec<BubbleColorParticleData> codec() {
-		return BubbleColorParticleData.CODEC;
+	public MapCodec<ColorParticleOption> codec() {
+		return ColorParticleOption.codec(ModParticles.CAULDRON_BUBBLE.get());
+	}
+
+	@Override
+	public StreamCodec<? super RegistryFriendlyByteBuf, ColorParticleOption> streamCodec() {
+		return ColorParticleOption.streamCodec(ModParticles.CAULDRON_BUBBLE.get());
 	}
 }

@@ -1,5 +1,8 @@
 package reliquary.items;
 
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -7,30 +10,29 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import reliquary.init.ModItems;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.RegistryHelper;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static reliquary.items.MobCharmDefinition.*;
 
 public class MobCharmRegistry {
-	private MobCharmRegistry() {}
+	private MobCharmRegistry() {
+	}
 
-	private static final Map<String, MobCharmDefinition> REGISTERED_CHARM_DEFINITIONS = new HashMap<>();
-	private static final Map<String, MobCharmDefinition> ENTITY_NAME_CHARM_DEFINITIONS = new HashMap<>();
-	private static final Set<String> DYNAMICALLY_REGISTERED = new HashSet<>();
+	private static final Map<ResourceLocation, MobCharmDefinition> REGISTERED_CHARM_DEFINITIONS = new HashMap<>();
+	private static final Map<ResourceLocation, MobCharmDefinition> ENTITY_NAME_CHARM_DEFINITIONS = new HashMap<>();
+	private static final Set<ResourceLocation> DYNAMICALLY_REGISTERED = new HashSet<>();
 
 	public static void registerMobCharmDefinition(MobCharmDefinition charmDefinition) {
 		REGISTERED_CHARM_DEFINITIONS.put(charmDefinition.getRegistryName(), charmDefinition);
-		for (String registryName : charmDefinition.getEntities()) {
+		for (ResourceLocation registryName : charmDefinition.getEntities()) {
 			ENTITY_NAME_CHARM_DEFINITIONS.put(registryName, charmDefinition);
 		}
 	}
@@ -56,7 +58,7 @@ public class MobCharmRegistry {
 	}
 
 	static Optional<MobCharmDefinition> getCharmDefinitionFor(Entity entity) {
-		return Optional.ofNullable(ENTITY_NAME_CHARM_DEFINITIONS.get(RegistryHelper.getRegistryName(entity).toString()));
+		return Optional.ofNullable(ENTITY_NAME_CHARM_DEFINITIONS.get(RegistryHelper.getRegistryName(entity)));
 	}
 
 	public static Optional<MobCharmDefinition> getCharmDefinitionFor(ItemStack stack) {
@@ -64,19 +66,18 @@ public class MobCharmRegistry {
 			return Optional.empty();
 		}
 
-		return Optional.ofNullable(ENTITY_NAME_CHARM_DEFINITIONS.get(MobCharmItem.getEntityRegistryName(stack)));
+		return Optional.ofNullable(ENTITY_NAME_CHARM_DEFINITIONS.get(MobCharmItem.getEntityEggRegistryName(stack)));
 	}
 
-	public static Set<String> getRegisteredNames() {
+	public static Set<ResourceLocation> getRegisteredNames() {
 		return REGISTERED_CHARM_DEFINITIONS.keySet();
 	}
 
 	public static void registerDynamicCharmDefinitions() {
-		for (EntityType<?> entityType : ForgeRegistries.ENTITY_TYPES) {
-			String registryName = RegistryHelper.getRegistryName(entityType).toString();
-			Set<String> blockedEntities = new HashSet<>(Settings.COMMON.items.mobCharm.entityBlockList.get());
-			if (!ENTITY_NAME_CHARM_DEFINITIONS.containsKey(registryName) && entityType.getCategory() == MobCategory.MONSTER && !blockedEntities.contains(registryName)) {
-				registerMobCharmDefinition(new MobCharmDefinition(registryName));
+		for (EntityType<?> entityType : BuiltInRegistries.ENTITY_TYPE) {
+			ResourceLocation registryName = EntityType.getKey(entityType);
+			if (!ENTITY_NAME_CHARM_DEFINITIONS.containsKey(registryName) && entityType.getCategory() == MobCategory.MONSTER && !Config.COMMON.items.mobCharm.isBlockedEntity(registryName)) {
+				registerMobCharmDefinition(new MobCharmDefinition(entityType));
 				DYNAMICALLY_REGISTERED.add(registryName);
 			}
 		}
@@ -89,14 +90,17 @@ public class MobCharmRegistry {
 
 		LivingEntity entity = evt.getEntity();
 		ResourceLocation regName = RegistryHelper.getRegistryName(entity);
-		if (!DYNAMICALLY_REGISTERED.contains(regName.toString())) {
+		if (!DYNAMICALLY_REGISTERED.contains(regName)) {
 			return;
 		}
 
-		double dynamicDropChance = Settings.COMMON.items.mobCharmFragment.dropChance.get() + evt.getLootingLevel() * Settings.COMMON.items.mobCharmFragment.lootingMultiplier.get();
+		HolderLookup.RegistryLookup<Enchantment> registrylookup = entity.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+		int lootingLevel = EnchantmentHelper.getEnchantmentLevel(registrylookup.getOrThrow(Enchantments.LOOTING), entity);
+
+		double dynamicDropChance = Config.COMMON.items.mobCharmFragment.dropChance.get() + lootingLevel * Config.COMMON.items.mobCharmFragment.lootingMultiplier.get();
 
 		if (entity.level().random.nextFloat() < dynamicDropChance) {
-			ItemEntity fragmentItemEntity = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), ModItems.MOB_CHARM_FRAGMENT.get().getStackFor(regName.toString()));
+			ItemEntity fragmentItemEntity = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), ModItems.MOB_CHARM_FRAGMENT.get().getStackFor(regName));
 			fragmentItemEntity.setDefaultPickUpDelay();
 
 			evt.getDrops().add(fragmentItemEntity);

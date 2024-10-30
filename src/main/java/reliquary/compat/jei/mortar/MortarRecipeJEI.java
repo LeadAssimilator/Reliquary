@@ -4,5 +4,5 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
-record MortarRecipeJEI(List<ItemStack> inputs, ItemStack output) {
+public record MortarRecipeJEI(List<ItemStack> inputs, ItemStack output) {
 }

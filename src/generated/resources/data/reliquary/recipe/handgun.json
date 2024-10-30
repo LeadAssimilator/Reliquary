@@ -1,0 +1,35 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "reliquary:barrel_assembly"
+    },
+    "G": {
+      "item": "reliquary:grip_assembly"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "M": {
+      "item": "reliquary:hammer_assembly"
+    },
+    "S": {
+      "item": "reliquary:slime_pearl"
+    }
+  },
+  "pattern": [
+    "BIM",
+    "ISI",
+    "IGI"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:handgun"
+  }
+}

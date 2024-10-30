@@ -5,11 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
-import net.minecraft.client.model.geom.builders.CubeDeformation;
-import net.minecraft.client.model.geom.builders.CubeListBuilder;
-import net.minecraft.client.model.geom.builders.LayerDefinition;
-import net.minecraft.client.model.geom.builders.MeshDefinition;
-import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.client.model.geom.builders.*;
 import net.minecraft.world.entity.LivingEntity;
 
 public class WitchHatModel extends HumanoidModel<LivingEntity> {
@@ -20,7 +16,7 @@ public class WitchHatModel extends HumanoidModel<LivingEntity> {
 	public static LayerDefinition createBodyLayer() {
 		MeshDefinition meshDefinition = createMesh(CubeDeformation.NONE, 3);
 		PartDefinition root = meshDefinition.getRoot();
-		PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create(),  PartPose.ZERO);
+		PartDefinition head = root.addOrReplaceChild("head", CubeListBuilder.create(), PartPose.ZERO);
 		root.addOrReplaceChild("hat", CubeListBuilder.create(), PartPose.ZERO);
 		root.addOrReplaceChild("body", CubeListBuilder.create(), PartPose.ZERO);
 		root.addOrReplaceChild("left_arm", CubeListBuilder.create(), PartPose.ZERO);
@@ -41,9 +37,9 @@ public class WitchHatModel extends HumanoidModel<LivingEntity> {
 	}
 
 	@Override
-	public void renderToBuffer(PoseStack ms, VertexConsumer buffer, int light, int overlay, float r, float g, float b, float a) {
+	public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, int color) {
 		setAllVisible(false);
 		head.visible = true;
-		super.renderToBuffer(ms, buffer, light, overlay, r, g, b, a);
+		super.renderToBuffer(poseStack, buffer, packedLight, packedOverlay, color);
 	}
 }

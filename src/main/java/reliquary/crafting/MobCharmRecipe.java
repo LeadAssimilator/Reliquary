@@ -1,19 +1,18 @@
 package reliquary.crafting;
 
-import com.google.gson.JsonObject;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
 import reliquary.init.ModItems;
 import reliquary.items.MobCharmItem;
 
-import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -23,23 +22,19 @@ public class MobCharmRecipe extends ShapedRecipe {
 	private final ShapedRecipe compose;
 
 	public MobCharmRecipe(ShapedRecipe compose) {
-		super(compose.getId(), compose.getGroup(), CraftingBookCategory.MISC, compose.getRecipeWidth(), compose.getRecipeHeight(), compose.getIngredients(), compose.result);
+		super(compose.getGroup(), CraftingBookCategory.MISC, compose.pattern, compose.result);
 		this.compose = compose;
 		REGISTERED_RECIPES.add(this);
 	}
 
-	public ShapedRecipe getCompose() {
-		return compose;
+	@Override
+	public boolean matches(CraftingInput inv, Level level) {
+		return super.matches(inv, level) && FragmentRecipeHelper.hasOnlyOneFragmentType(inv);
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inv, Level worldIn) {
-		return super.matches(inv, worldIn) && FragmentRecipeHelper.hasOnlyOneFragmentType(inv);
-	}
-
-	@Override
-	public ItemStack assemble(CraftingContainer inv, RegistryAccess registryAccess) {
-		ItemStack ret = super.assemble(inv, registryAccess);
+	public ItemStack assemble(CraftingInput inv, HolderLookup.Provider registries) {
+		ItemStack ret = super.assemble(inv, registries);
 		FragmentRecipeHelper.getRegistryName(inv).ifPresent(regName -> MobCharmItem.setEntityRegistryName(ret, regName));
 		return ret;
 	}
@@ -55,21 +50,19 @@ public class MobCharmRecipe extends ShapedRecipe {
 	}
 
 	public static class Serializer implements RecipeSerializer<MobCharmRecipe> {
-		@Override
-		public MobCharmRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-			return new MobCharmRecipe(RecipeSerializer.SHAPED_RECIPE.fromJson(recipeId, json));
-		}
-
-		@Nullable
-		@Override
-		public MobCharmRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-			//noinspection ConstantConditions - shaped recipe serializer always returns an instance of recipe despite RecipeSerializer's null allowing contract
-			return new MobCharmRecipe(RecipeSerializer.SHAPED_RECIPE.fromNetwork(recipeId, buffer));
-		}
+		private static final MapCodec<MobCharmRecipe> CODEC = RecipeSerializer.SHAPED_RECIPE.codec()
+				.xmap(MobCharmRecipe::new, recipe -> recipe.compose);
+		private static final StreamCodec<RegistryFriendlyByteBuf, MobCharmRecipe> STREAM_CODEC = RecipeSerializer.SHAPED_RECIPE.streamCodec()
+				.map(MobCharmRecipe::new, recipe -> recipe.compose);
 
 		@Override
-		public void toNetwork(FriendlyByteBuf buffer, MobCharmRecipe recipe) {
-			RecipeSerializer.SHAPED_RECIPE.toNetwork(buffer, recipe.compose);
+		public MapCodec<MobCharmRecipe> codec() {
+			return CODEC;
+		}
+
+		@Override
+		public StreamCodec<RegistryFriendlyByteBuf, MobCharmRecipe> streamCodec() {
+			return STREAM_CODEC;
 		}
 	}
 }

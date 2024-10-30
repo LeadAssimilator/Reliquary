@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "F": {
+      "item": "minecraft:rotten_flesh"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    }
+  },
+  "pattern": [
+    "III",
+    "IFI",
+    "III"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:zombie_heart"
+  }
+}

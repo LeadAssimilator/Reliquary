@@ -6,7 +6,7 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -25,12 +25,10 @@ import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import reliquary.blocks.tile.PedestalBlockEntity;
 import reliquary.init.ModBlocks;
 import reliquary.pedestal.PedestalRegistry;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.BlockEntityHelper;
 import reliquary.util.WorldHelper;
 
@@ -67,11 +65,11 @@ public class PedestalBlock extends PassivePedestalBlock {
 
 	@Override
 	protected boolean isDisabled() {
-		return Boolean.TRUE.equals(Settings.COMMON.disable.disablePedestal.get());
+		return Boolean.TRUE.equals(Config.COMMON.disable.disablePedestal.get());
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return SHAPE;
 	}
 
@@ -102,7 +100,6 @@ public class PedestalBlock extends PassivePedestalBlock {
 		return BlockEntityHelper.createTickerHelper(blockEntityType, ModBlocks.PEDESTAL_TILE_TYPE.get(), (l, p, s, be) -> be.serverTick(l));
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	public void neighborChanged(BlockState state, Level level, BlockPos pos, Block blockIn, BlockPos fromPos, boolean isMoving) {
 		super.neighborChanged(state, level, pos, blockIn, fromPos, isMoving);
@@ -112,8 +109,7 @@ public class PedestalBlock extends PassivePedestalBlock {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void animateTick(BlockState state, Level world, BlockPos pos, RandomSource rand) {
+	public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource rand) {
 		if (Boolean.TRUE.equals(state.getValue(ENABLED)) && rand.nextInt(2) == 1) {
 			Direction dir = Direction.from2DDataValue(rand.nextInt(4));
 
@@ -125,25 +121,24 @@ public class PedestalBlock extends PassivePedestalBlock {
 
 			Vec3i normal = dir.getNormal();
 
-			world.addParticle(DustParticleOptions.REDSTONE, xMiddle + normal.getX() * sideOffset + normal.getZ() * alongTheSideOffset, y, zMiddle + normal.getZ() * sideOffset + normal.getX() * alongTheSideOffset, 0.0D, 0.0D, 0.0D);
+			level.addParticle(DustParticleOptions.REDSTONE, xMiddle + normal.getX() * sideOffset + normal.getZ() * alongTheSideOffset, y, zMiddle + normal.getZ() * sideOffset + normal.getX() * alongTheSideOffset, 0.0D, 0.0D, 0.0D);
 		}
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(hand);
+	protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
 		if (level.isClientSide) {
-			return !heldItem.isEmpty() || player.isCrouching() ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
+			return ItemInteractionResult.CONSUME;
 		}
 
 		return WorldHelper.getBlockEntity(level, pos, PedestalBlockEntity.class).map(pedestal -> {
-					if (heldItem.isEmpty() && !player.isCrouching() && hand == InteractionHand.MAIN_HAND && switchClicked(hit.getLocation().subtract(pos.getX(), pos.getY(), pos.getZ()))) {
+					if (heldItem.isEmpty() && !player.isCrouching() && hand == InteractionHand.MAIN_HAND && switchClicked(hitResult.getLocation().subtract(pos.getX(), pos.getY(), pos.getZ()))) {
 						pedestal.toggleSwitch(level);
-						return InteractionResult.SUCCESS;
+						return ItemInteractionResult.SUCCESS;
 					}
-					return super.use(state, level, pos, player, hand, hit);
+					return super.useItemOn(heldItem, state, level, pos, player, hand, hitResult);
 				}
-		).orElse(InteractionResult.FAIL);
+		).orElse(ItemInteractionResult.FAIL);
 	}
 
 	private boolean switchClicked(Vec3 hitVec) {

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:rib_bone"
+    },
+    {
+      "item": "reliquary:catalyzing_gland"
+    },
+    {
+      "tag": "c:dyes/green"
+    },
+    {
+      "item": "reliquary:slime_pearl"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:fertile_essence"
+  }
+}

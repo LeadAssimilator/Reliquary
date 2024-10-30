@@ -1,21 +1,20 @@
 package reliquary.crafting.conditions;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import com.mojang.serialization.MapCodec;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import reliquary.reference.Config;
 
 public class MobDropsCraftableCondition implements ICondition {
-	private static final ResourceLocation ID = new ResourceLocation(Reference.MOD_ID, "mob_drops_craftable");
-	public static final SimpleConditionSerializer<MobDropsCraftableCondition> SERIALIZER = new SimpleConditionSerializer<>(ID, MobDropsCraftableCondition::new);
-
-	@Override
-	public ResourceLocation getID() {
-		return ID;
-	}
+	private static final MobDropsCraftableCondition INSTANCE = new MobDropsCraftableCondition();
+	public static final MapCodec<MobDropsCraftableCondition> CODEC = MapCodec.unit(INSTANCE).stable();
 
 	@Override
 	public boolean test(IContext context) {
-		return Settings.COMMON.dropCraftingRecipesEnabled.get();
+		return Config.COMMON.dropCraftingRecipesEnabled.get();
+	}
+
+	@Override
+	public MapCodec<? extends ICondition> codec() {
+		return CODEC;
 	}
 }

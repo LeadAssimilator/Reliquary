@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "S": {
+      "tag": "c:slimeballs"
+    }
+  },
+  "pattern": [
+    "III",
+    "ISI",
+    "III"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:slime_pearl"
+  }
+}

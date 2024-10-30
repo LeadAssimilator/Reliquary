@@ -5,9 +5,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
+import reliquary.Reliquary;
 import reliquary.blocks.PedestalBlock;
 import reliquary.blocks.tile.PedestalBlockEntity;
-import reliquary.reference.Reference;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.ITooltip;
@@ -15,7 +15,7 @@ import snownee.jade.api.config.IPluginConfig;
 
 public class DataProviderPedestal implements IBlockComponentProvider {
 
-	private static final ResourceLocation PEDESTAL_UID = new ResourceLocation(Reference.MOD_ID, "pedestal");
+	private static final ResourceLocation PEDESTAL_UID = Reliquary.getRL("pedestal");
 
 	@Override
 	public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig pluginConfig) {

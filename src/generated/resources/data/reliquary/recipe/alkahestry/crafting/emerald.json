@@ -1,0 +1,13 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:alkahestry_enabled"
+    }
+  ],
+  "type": "reliquary:alkahestry_crafting",
+  "charge": 32,
+  "ingredient": {
+    "tag": "c:gems/emerald"
+  },
+  "result_count": 2
+}

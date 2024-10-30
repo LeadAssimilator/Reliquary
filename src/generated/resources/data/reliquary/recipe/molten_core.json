@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "c:ingots/gold"
+    },
+    "M": {
+      "item": "minecraft:magma_cream"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "GMG",
+    "GGG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:molten_core"
+  }
+}

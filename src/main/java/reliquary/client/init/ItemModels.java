@@ -1,7 +1,7 @@
 package reliquary.client.init;
 
 import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraftforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.ModelEvent;
 import reliquary.client.model.VoidTearModel;
 import reliquary.init.ModItems;
 import reliquary.util.RegistryHelper;

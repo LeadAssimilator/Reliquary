@@ -1,0 +1,35 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "c:ingots/gold"
+    },
+    "L": {
+      "tag": "c:dusts/glowstone"
+    },
+    "R": {
+      "tag": "c:dusts/redstone"
+    },
+    "S": {
+      "item": "minecraft:sugar"
+    },
+    "T": {
+      "item": "minecraft:stick"
+    }
+  },
+  "pattern": [
+    "SLS",
+    "RGR",
+    "TLT"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:witch_hat"
+  }
+}

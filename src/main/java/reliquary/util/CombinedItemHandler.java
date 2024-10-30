@@ -1,8 +1,8 @@
 package reliquary.util;
 
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.wrapper.EmptyHandler;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.wrapper.EmptyItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 // combines multiple IItemHandler into one interface
@@ -25,7 +25,9 @@ public class CombinedItemHandler implements IItemHandler {
 
 	// returns the handler index for the slot
 	protected int getIndexForSlot(int slot) {
-		if (slot < 0) {return -1;}
+		if (slot < 0) {
+			return -1;
+		}
 
 		for (int i = 0; i < baseIndex.length; i++) {
 			if (slot - baseIndex[i] < 0) {
@@ -37,7 +39,7 @@ public class CombinedItemHandler implements IItemHandler {
 
 	protected IItemHandler getHandlerFromIndex(int index) {
 		if (index < 0 || index >= itemHandler.length) {
-			return EmptyHandler.INSTANCE;
+			return EmptyItemHandler.INSTANCE;
 		}
 		return itemHandler[index];
 	}

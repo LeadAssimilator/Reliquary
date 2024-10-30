@@ -7,12 +7,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import reliquary.handler.CommonEventHandler;
 import reliquary.handler.HandlerPriority;
 import reliquary.handler.IPlayerHurtHandler;
 import reliquary.init.ModItems;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
 
 public class AngelicFeatherItem extends ItemBase {
@@ -20,7 +20,7 @@ public class AngelicFeatherItem extends ItemBase {
 		super(new Properties().stacksTo(1).setNoRepair().rarity(Rarity.EPIC));
 		CommonEventHandler.registerPlayerHurtHandler(new IPlayerHurtHandler() {
 			@Override
-			public boolean canApply(Player player, LivingAttackEvent event) {
+			public boolean canApply(Player player, LivingIncomingDamageEvent event) {
 				return event.getSource() == player.damageSources().fall()
 						&& player.getFoodData().getFoodLevel() > 0
 						&& InventoryHelper.playerHasItem(player, ModItems.ANGELIC_FEATHER.get())
@@ -28,8 +28,8 @@ public class AngelicFeatherItem extends ItemBase {
 			}
 
 			@Override
-			public boolean apply(Player player, LivingAttackEvent event) {
-				float hungerDamage = event.getAmount() * ((float) Settings.COMMON.items.angelicFeather.hungerCostPercent.get() / 100F);
+			public boolean apply(Player player, LivingIncomingDamageEvent event) {
+				float hungerDamage = event.getAmount() * ((float) Config.COMMON.items.angelicFeather.hungerCostPercent.get() / 100F);
 				player.causeFoodExhaustion(hungerDamage);
 				return true;
 			}
@@ -43,8 +43,8 @@ public class AngelicFeatherItem extends ItemBase {
 
 	// minor jump buff
 	@Override
-	public void inventoryTick(ItemStack stack, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		int potency = this instanceof PhoenixDownItem ? Settings.COMMON.items.phoenixDown.leapingPotency.get() : Settings.COMMON.items.angelicFeather.leapingPotency.get();
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		int potency = this instanceof PhoenixDownItem ? Config.COMMON.items.phoenixDown.leapingPotency.get() : Config.COMMON.items.angelicFeather.leapingPotency.get();
 		if (potency == 0) {
 			return;
 		}

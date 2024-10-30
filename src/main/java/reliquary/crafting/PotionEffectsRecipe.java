@@ -1,91 +1,91 @@
 package reliquary.crafting;
 
-import com.google.gson.JsonObject;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.util.Tuple;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.Level;
 import reliquary.init.ModItems;
 import reliquary.items.util.IPotionItem;
-import reliquary.util.potions.XRPotionHelper;
+import reliquary.util.potions.PotionHelper;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 public class PotionEffectsRecipe implements CraftingRecipe {
-	private final ShapedRecipe compose;
+	private final ShapedRecipePattern pattern;
+	private final ItemStack result;
+	private final String group;
 	private final float potionDurationFactor;
 
-	private PotionEffectsRecipe(ShapedRecipe compose, float potionDurationFactor) {
-		this.compose = compose;
+	public PotionEffectsRecipe(String group, ShapedRecipePattern pattern, ItemStack result, float potionDurationFactor) {
+		this.group = group;
+		this.pattern = pattern;
+		this.result = result;
 		this.potionDurationFactor = potionDurationFactor;
 	}
 
 	@Override
-	public ItemStack assemble(CraftingContainer inv, RegistryAccess registryAccess) {
-		ItemStack newOutput = compose.getResultItem(registryAccess).copy();
+	public ItemStack assemble(CraftingInput inv, HolderLookup.Provider registries) {
+		ItemStack newOutput = result.copy();
 
-		findMatchAndUpdateEffects(inv).ifPresent(targetEffects -> XRPotionHelper.addPotionEffectsToStack(newOutput, targetEffects));
+		findMatchAndUpdatePotionContents(inv).ifPresent(potionContents -> PotionHelper.addPotionContentsToStack(newOutput, potionContents));
 
 		return newOutput;
 	}
 
 	@Override
 	public boolean canCraftInDimensions(int width, int height) {
-		return width >= compose.getRecipeWidth() && height >= compose.getRecipeHeight();
+		return width >= pattern.width() && height >= pattern.height();
 	}
 
-	private Optional<List<MobEffectInstance>> findMatchAndUpdateEffects(CraftingContainer inv) {
-		List<MobEffectInstance> targetEffects;
-		for (int startX = 0; startX <= inv.getWidth() - compose.getRecipeWidth(); startX++) {
-			for (int startY = 0; startY <= inv.getHeight() - compose.getRecipeHeight(); ++startY) {
-				targetEffects = new ArrayList<>();
-				if (checkMatchAndUpdateEffects(inv, targetEffects, startX, startY, false)) {
-					return Optional.of(targetEffects);
+	private Optional<PotionContents> findMatchAndUpdatePotionContents(CraftingInput inv) {
+		for (int startX = 0; startX <= inv.width() - pattern.width(); startX++) {
+			for (int startY = 0; startY <= inv.width() - pattern.height(); ++startY) {
+				Optional<PotionContents> ret = checkMatchAndUpdatePotionContents(inv, startX, startY, false);
+				if (ret.isPresent()) {
+					return ret;
 				}
-				targetEffects = new ArrayList<>();
-				if (checkMatchAndUpdateEffects(inv, targetEffects, startX, startY, true)) {
-					return Optional.of(targetEffects);
+				ret = checkMatchAndUpdatePotionContents(inv, startX, startY, true);
+				if (ret.isPresent()) {
+					return ret;
 				}
 			}
 		}
 		return Optional.empty();
 	}
 
-	private boolean checkMatchAndUpdateEffects(CraftingContainer inv, List<MobEffectInstance> targetEffects, int startX, int startY, boolean mirror) {
-		for (int x = 0; x < compose.getRecipeWidth(); x++) {
-			for (int y = 0; y < compose.getRecipeHeight(); y++) {
+	private Optional<PotionContents> checkMatchAndUpdatePotionContents(CraftingInput inv, int startX, int startY, boolean mirror) {
+		PotionContents targetPotionContents = PotionContents.EMPTY;
+		for (int x = 0; x < pattern.width(); x++) {
+			for (int y = 0; y < pattern.height(); y++) {
 				int subX = x - startX;
 				int subY = y - startY;
 
 				Ingredient target = getTarget(subX, subY, mirror);
 
-				if (target.test(inv.getItem(x + y * inv.getWidth()))) {
-					updateTargetEffects(inv, targetEffects, x, y);
+				ItemStack stack = inv.getItem(x + y * inv.width());
+				if (target.test(stack)) {
+					targetPotionContents = updateTargetEffects(stack, targetPotionContents).getB();
 				} else {
-					return false;
+					return Optional.empty();
 				}
 			}
 		}
-		return true;
+		return Optional.of(targetPotionContents);
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inv, Level world) {
-		for (int x = 0; x <= inv.getWidth() - compose.getRecipeWidth(); x++) {
-			for (int y = 0; y <= inv.getHeight() - compose.getRecipeHeight(); ++y) {
+	public boolean matches(CraftingInput inv, Level level) {
+		for (int x = 0; x <= inv.width() - pattern.width(); x++) {
+			for (int y = 0; y <= inv.height() - pattern.height(); ++y) {
 				if (checkMatch(inv, x, y, false)) {
 					return true;
 				}
@@ -99,68 +99,64 @@ public class PotionEffectsRecipe implements CraftingRecipe {
 		return false;
 	}
 
-	private boolean checkMatch(CraftingContainer inv, int startX, int startY, boolean mirror) {
-		List<MobEffectInstance> targetEffects = new ArrayList<>();
-		for (int x = 0; x < inv.getWidth(); x++) {
-			for (int y = 0; y < inv.getHeight(); y++) {
+	private boolean checkMatch(CraftingInput inv, int startX, int startY, boolean mirror) {
+		PotionContents targetPotionContents = PotionContents.EMPTY;
+		for (int x = 0; x < inv.width(); x++) {
+			for (int y = 0; y < inv.height(); y++) {
 				int subX = x - startX;
 				int subY = y - startY;
 
 				Ingredient target = getTarget(subX, subY, mirror);
 
-				if (!target.test(inv.getItem(x + y * inv.getWidth()))) {
+				ItemStack stack = inv.getItem(x + y * inv.width());
+				if (!target.test(stack)) {
 					return false;
 				}
-				if (!updateTargetEffects(inv, targetEffects, x, y)) {
+				Tuple<Boolean, PotionContents> result = updateTargetEffects(stack, targetPotionContents);
+				if (!result.getA()) {
 					return false;
 				}
-
+				targetPotionContents = result.getB();
 			}
 		}
 		return true;
 	}
 
 	@Override
-	public ItemStack getResultItem(RegistryAccess registryAccess) {
-		return compose.getResultItem(registryAccess);
+	public ItemStack getResultItem(HolderLookup.Provider registries) {
+		return result;
 	}
 
 	@Override
 	public NonNullList<Ingredient> getIngredients() {
-		return compose.getIngredients();
-	}
-
-	@Override
-	public ResourceLocation getId() {
-		return compose.getId();
+		return pattern.ingredients();
 	}
 
 	private Ingredient getTarget(int subX, int subY, boolean mirror) {
-		if (subX >= 0 && subY >= 0 && subX < compose.getRecipeWidth() && subY < compose.getRecipeHeight()) {
+		if (subX >= 0 && subY >= 0 && subX < pattern.width() && subY < pattern.height()) {
 			if (mirror) {
-				return compose.getIngredients().get(compose.getRecipeWidth() - subX - 1 + subY * compose.getRecipeWidth());
+				return pattern.ingredients().get(pattern.width() - subX - 1 + subY * pattern.width());
 			} else {
-				return compose.getIngredients().get(subX + subY * compose.getRecipeWidth());
+				return pattern.ingredients().get(subX + subY * pattern.width());
 			}
 		}
 		return Ingredient.EMPTY;
 	}
 
-	private boolean updateTargetEffects(CraftingContainer inv, List<MobEffectInstance> targetEffects, int x, int y) {
-		ItemStack invStack = inv.getItem(x + y * inv.getWidth());
-		if (invStack.getItem() instanceof IPotionItem potionItem) {
-			List<MobEffectInstance> effects = potionItem.getEffects(invStack);
-			if (effects.isEmpty()) {
-				return true;
+	private Tuple<Boolean, PotionContents> updateTargetEffects(ItemStack stack, PotionContents targetPotionContents) {
+		if (stack.getItem() instanceof IPotionItem potionItem) {
+			PotionContents potionContents = potionItem.getPotionContents(stack);
+			if (!potionContents.hasEffects()) {
+				return new Tuple<>(true, targetPotionContents);
 			}
 
-			if (targetEffects.isEmpty()) {
-				targetEffects.addAll(XRPotionHelper.changePotionEffectsDuration(effects, potionDurationFactor));
+			if (!targetPotionContents.hasEffects()) {
+				targetPotionContents = PotionHelper.changePotionEffectsDuration(potionContents, potionDurationFactor);
 			} else {
-				return XRPotionHelper.changePotionEffectsDuration(effects, potionDurationFactor).equals(targetEffects); // Two items with different MobEffects marked as to be copied
+				return new Tuple<>(PotionHelper.changePotionEffectsDuration(potionContents, potionDurationFactor).equals(targetPotionContents), targetPotionContents); // Two items with different MobEffects marked as to be copied
 			}
 		}
-		return true;
+		return new Tuple<>(true, targetPotionContents);
 	}
 
 	@Override
@@ -178,23 +174,48 @@ public class PotionEffectsRecipe implements CraftingRecipe {
 		return CraftingBookCategory.MISC;
 	}
 
+	public ShapedRecipePattern getPattern() {
+		return pattern;
+	}
+
+	public ItemStack getResult() {
+		return result;
+	}
+
+	public float getPotionDurationFactor() {
+		return potionDurationFactor;
+	}
+
 	public static class Serializer implements RecipeSerializer<PotionEffectsRecipe> {
+		private static final MapCodec<PotionEffectsRecipe> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+								Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
+								ShapedRecipePattern.MAP_CODEC.forGetter(recipe -> recipe.pattern),
+								ItemStack.STRICT_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
+								Codec.FLOAT.fieldOf("duration_factor").forGetter(recipe -> recipe.potionDurationFactor)
+						)
+						.apply(instance, PotionEffectsRecipe::new));
+
+		private static final StreamCodec<RegistryFriendlyByteBuf, PotionEffectsRecipe> STREAM_CODEC = StreamCodec.composite(
+				ByteBufCodecs.STRING_UTF8,
+				PotionEffectsRecipe::getGroup,
+				ShapedRecipePattern.STREAM_CODEC,
+				PotionEffectsRecipe::getPattern,
+				ItemStack.STREAM_CODEC,
+				PotionEffectsRecipe::getResult,
+				ByteBufCodecs.FLOAT,
+				PotionEffectsRecipe::getPotionDurationFactor,
+				PotionEffectsRecipe::new
+		);
+
 		@Override
-		public PotionEffectsRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-			return new PotionEffectsRecipe(RecipeSerializer.SHAPED_RECIPE.fromJson(recipeId, json), GsonHelper.getAsFloat(json, "duration_factor", 1.0f));
+		public MapCodec<PotionEffectsRecipe> codec() {
+			return CODEC;
 		}
 
-		@Nullable
 		@Override
-		public PotionEffectsRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-			//noinspection ConstantConditions - shaped recipe serializer always returns an instance of recipe despite RecipeSerializer's null allowing contract
-			return new PotionEffectsRecipe(RecipeSerializer.SHAPED_RECIPE.fromNetwork(recipeId, buffer), buffer.readFloat());
-		}
-
-		@Override
-		public void toNetwork(FriendlyByteBuf buffer, PotionEffectsRecipe recipe) {
-			RecipeSerializer.SHAPED_RECIPE.toNetwork(buffer, recipe.compose);
-			buffer.writeFloat(recipe.potionDurationFactor);
+		public StreamCodec<RegistryFriendlyByteBuf, PotionEffectsRecipe> streamCodec() {
+			return STREAM_CODEC;
 		}
 	}
 }

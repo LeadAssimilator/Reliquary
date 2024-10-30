@@ -4,41 +4,35 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.LargeFireball;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.ProjectileDeflection;
 import net.minecraft.world.entity.projectile.SmallFireball;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import reliquary.util.RandHelper;
 
 import java.util.List;
 
 public class SalamanderEyeItem extends ItemBase {
 	public SalamanderEyeItem() {
-		super(new Properties().stacksTo(1));
+		super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
 	public boolean isFoil(ItemStack stack) {
 		return true;
 	}
 
 	@Override
-	public void inventoryTick(ItemStack stack, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		if (world.isClientSide || !(entity instanceof Player player) || world.getGameTime() % 2 != 0) {
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % 2 != 0) {
 			return;
 		}
 
@@ -62,13 +56,13 @@ public class SalamanderEyeItem extends ItemBase {
 	}
 
 	private void doFireballEffect(Player player) {
-		List<LargeFireball> ghastFireballs = player.level().getEntitiesOfClass(LargeFireball.class, player.getBoundingBox().inflate(5));
-		for (LargeFireball fireball : ghastFireballs) {
-			if (player.distanceTo(fireball) < 4) {
-				fireball.discard();
+		List<Projectile> projectiles = player.level().getEntitiesOfClass(Projectile.class, player.getBoundingBox().inflate(5), projectile -> projectile.getType().is(EntityTypeTags.REDIRECTABLE_PROJECTILE));
+		for (Projectile projectile : projectiles) {
+			if (player.distanceTo(projectile) < 4) {
+				projectile.discard();
 			}
-			fireball.hurt(player.damageSources().playerAttack(player), 1);
-			player.level().playLocalSound(fireball.getX(), fireball.getY(), fireball.getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.NEUTRAL, 0.5F, 2.6F + RandHelper.getRandomMinusOneToOne(player.level().random) * 0.8F, false);
+			projectile.deflect(ProjectileDeflection.AIM_DEFLECT, player, player, true);
+			player.level().playLocalSound(projectile.getX(), projectile.getY(), projectile.getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.NEUTRAL, 0.5F, 2.6F + RandHelper.getRandomMinusOneToOne(player.level().random) * 0.8F, false);
 		}
 		List<SmallFireball> blazeFireballs = player.level().getEntitiesOfClass(SmallFireball.class, player.getBoundingBox().inflate(3));
 		for (SmallFireball fireball : blazeFireballs) {

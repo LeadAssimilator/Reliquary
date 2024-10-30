@@ -10,10 +10,10 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.common.util.FakePlayer;
+import net.neoforged.neoforge.common.util.FakePlayer;
 import reliquary.api.IPedestal;
 import reliquary.api.IPedestalActionItemWrapper;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 
 import java.util.List;
 
@@ -21,13 +21,13 @@ public class PedestalMeleeWeaponWrapper implements IPedestalActionItemWrapper {
 	private final int cooldownAfterSwing;
 
 	public PedestalMeleeWeaponWrapper() {
-		cooldownAfterSwing = Settings.COMMON.blocks.pedestal.meleeWrapperCooldown.get();
+		cooldownAfterSwing = Config.COMMON.blocks.pedestal.meleeWrapperCooldown.get();
 	}
 
 	@Override
 	public void update(ItemStack stack, Level level, IPedestal pedestal) {
 		BlockPos pos = pedestal.getBlockPosition();
-		int meleeRange = Settings.COMMON.blocks.pedestal.meleeWrapperRange.get();
+		int meleeRange = Config.COMMON.blocks.pedestal.meleeWrapperRange.get();
 
 		List<Mob> entities = level.getEntitiesOfClass(Mob.class, new AABB((double) pos.getX() - meleeRange, (double) pos.getY() - meleeRange, (double) pos.getZ() - meleeRange, (double) pos.getX() + meleeRange, (double) pos.getY() + meleeRange, (double) pos.getZ() + meleeRange));
 

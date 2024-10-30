@@ -92,7 +92,7 @@
     "item.reliquary.ender_staff.tooltip": "Uses ender pearls to let player teleport around",
     "item.reliquary.ender_staff.tooltip2": "Shift + Scroll to cycle modes:\n[Cast, Long Cast, Node Warp or Bind]",
     "item.reliquary.ender_staff.tooltip.charge": "Ender Pearls: %s",
-    "item.reliquary.ender_staff.tooltip.position": "Currently bound to X:%s Y:%s Z:%s",
+    "item.reliquary.ender_staff.tooltip.position": "Currently bound to %s, %s, %s in %s",
     "item.reliquary.ender_staff.tooltip.position.nowhere": "Currently bound to nowhere.",
     "item.reliquary.ender_staff.tooltip.position.out_of_range": "Out of range!",
     "item.reliquary.fertile_potion": "Fertile Potion",
@@ -236,6 +236,7 @@
     "item.reliquary.witch_hat": "Witch Hat",
     "item.reliquary.witherless_rose": "Witherless Rose",
     "item.reliquary.witherless_rose.tooltip": "With the Nether Stars enchanting this rose the holder is protected from Withering.",
+    "item.reliquary.xp_bucket": "Bucket of Experience",
     "tooltip.reliquary.hold_for_more_info": "Hold <%s> for more info",
     "tooltip.reliquary.shift": "Shift",
 
@@ -351,7 +352,7 @@
     "jei.reliquary.description.witch_hat": "Dropped by witches. Allows you to craft the Tome of Aklahestry. Also you can wear it if you want to look like a leprechaun.",
     "jei.reliquary.description.witherless_rose": "While this is in your inventory, you are immune to the wither ailment.",
     "jei.reliquary.description.wraith_node": "Right-click it with the Ender Staff and it will bind your Ender Staff to it, allowing you to return there at will for a price of Ender Pearls.\n\nNote that it will not work across different dimensions.",
-    "jei.reliquary.description.pedestal": "Pedestal is a fancy way of displaying your items, but at the same time it also allows some automation.\n\nCoin of fortune - When active picks up items and XP and puts these in containers beside the pedestal, when inactive prevents players and pedestals with fortune coin from picking up items in its range\nHero's medallion - Acts as a tank for XP also when activated searches nearby pedestals for mending items and repairs those with its XP\nSword - Attacks mobs in its range (ignores bosses, tamed and child animals)\nBucket - milks cows and picks up fluids in the world and puts these in containers beside the pedestal\nShears - shears all shearable blocks and entities in its range\nFishing Rod - fishes for the player, doesn't pick up items or xp, you need to use something else for that\nTo turn on pedestal functionality either empty hand right click the switch or provide redstone signal or provide power remotely using redstone block or dust in another pedestal",
+    "jei.reliquary.description.pedestal": "Pedestal is a fancy way of displaying your items, but at the same time it also allows some automation.\n\nCoin of fortune - When active picks up items and XP and puts these in containers beside the pedestal, when inactive prevents players and pedestals with fortune coin from picking up items in its range\nHero's medallion - Acts as a tank for XP also when activated searches nearby pedestals for mending items and repairs those with its XP\nSword - Attacks mobs in its range (ignores bosses, tamed and child animals)\nBucket - milks cows and picks up fluids in the level and puts these in containers beside the pedestal\nShears - shears all shearable blocks and entities in its range\nFishing Rod - fishes for the player, doesn't pick up items or xp, you need to use something else for that\nTo turn on pedestal functionality either empty hand right click the switch or provide redstone signal or provide power remotely using redstone block or dust in another pedestal",
     "jei.reliquary.description.passive_pedestal": "Display only pedestal is exactly that - fancy way of displaying items, but doesn't have any of the regular pedestal's functionality for the items put into it",
 
     "keybind.reliquary.category": "Reliquary",
@@ -372,8 +373,8 @@
     "enchantment.reliquary.severing": "Severing",
     "enchantment.reliquary.severing.desc": "Significantly increases chance of Reliquary drops",
 
-    "fluid.reliquary.xp_juice_still": "Experience",
-    "fluid_type.reliquary.xp_juice": "Experience",
+    "fluid.reliquary.xp_still": "Experience",
+    "fluid_type.reliquary.experience": "Experience",
 
     "waila.reliquary.cauldron.lingering": "Lingering potion",
     "waila.reliquary.cauldron.splash": "Splash potion",

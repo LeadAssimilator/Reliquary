@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "F": {
+      "item": "reliquary:mob_charm_fragment"
+    },
+    "L": {
+      "tag": "c:leathers"
+    }
+  },
+  "pattern": [
+    "LLL",
+    "F F",
+    "FFF"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:mob_charm_belt"
+  }
+}

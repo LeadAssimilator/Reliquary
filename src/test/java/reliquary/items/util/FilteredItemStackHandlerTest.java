@@ -10,7 +10,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagInt;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.NonNullList;
-import net.minecraftforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -309,7 +309,7 @@ public class FilteredItemStackHandlerTest extends PowerMockTestCase {
 		when(handler.getParentSlotLimit(anyInt())).thenReturn(1000);
 
 		PowerMockito.mockStatic(ItemHandlerHelper.class);
-		PowerMockito.when(ItemHandlerHelper.canItemStacksStack(any(ItemStack.class), any(ItemStack.class))).thenReturn(true);
+		PowerMockito.when(ItemStack.isSameItemSameComponents(any(ItemStack.class), any(ItemStack.class))).thenReturn(true);
 		handler.setDynamicSlotNumber(true);
 		handler.setTotalAmount(0, 55);
 		handler.setTotalAmount(1, 1000);
@@ -403,7 +403,7 @@ public class FilteredItemStackHandlerTest extends PowerMockTestCase {
 		doReturn(true).when(handler).isItemStackValidForParentSlot(any(ItemStack.class), anyInt());
 
 		PowerMockito.mockStatic(ItemHandlerHelper.class);
-		PowerMockito.when(ItemHandlerHelper.canItemStacksStack(any(ItemStack.class), any(ItemStack.class))).thenReturn(true);
+		PowerMockito.when(ItemStack.isSameItemSameComponents(any(ItemStack.class), any(ItemStack.class))).thenReturn(true);
 		handler.setDynamicSlotNumber(true);
 		handler.setTotalAmount(0, 55);
 		handler.setTotalAmount(1, 1000);

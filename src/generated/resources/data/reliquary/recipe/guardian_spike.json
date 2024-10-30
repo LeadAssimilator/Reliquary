@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "c:ingots/gold"
+    },
+    "P": {
+      "item": "minecraft:prismarine_shard"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "GPG",
+    "GGG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:guardian_spike"
+  }
+}

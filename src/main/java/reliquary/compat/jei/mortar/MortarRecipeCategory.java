@@ -8,25 +8,24 @@ import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import reliquary.Reliquary;
 import reliquary.init.ModBlocks;
-import reliquary.reference.Reference;
 
 import java.util.List;
 
 public class MortarRecipeCategory implements mezz.jei.api.recipe.category.IRecipeCategory<MortarRecipeJEI> {
-	public static final RecipeType<MortarRecipeJEI> TYPE = RecipeType.create(Reference.MOD_ID, "mortar", MortarRecipeJEI.class);
+	public static final RecipeType<MortarRecipeJEI> TYPE = RecipeType.create(Reliquary.MOD_ID, "mortar", MortarRecipeJEI.class);
 	private final IDrawable background;
 	private final Component localizedName;
 	private final IDrawable icon;
 
 	public MortarRecipeCategory(IGuiHelper guiHelper) {
 
-		background = guiHelper.drawableBuilder(new ResourceLocation(Reference.DOMAIN + "textures/gui/jei/backgrounds.png"), 137, 0, 66, 51)
+		background = guiHelper.drawableBuilder(Reliquary.getRL("textures/gui/jei/backgrounds.png"), 137, 0, 66, 51)
 				.addPadding(0, 0, 13, 0)
 				.build();
-		localizedName = Component.translatable("jei." + Reference.MOD_ID + ".recipe.mortar");
+		localizedName = Component.translatable("jei." + Reliquary.MOD_ID + ".recipe.mortar");
 		icon = guiHelper.createDrawableItemStack(new ItemStack(ModBlocks.APOTHECARY_MORTAR.get()));
 	}
 

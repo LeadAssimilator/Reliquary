@@ -3,11 +3,7 @@ package reliquary.client.gui.hud;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemStack;
-import reliquary.client.gui.components.Box;
-import reliquary.client.gui.components.Component;
-import reliquary.client.gui.components.ItemStackPane;
-import reliquary.client.gui.components.TextPane;
-import reliquary.client.gui.components.XPBarPane;
+import reliquary.client.gui.components.*;
 import reliquary.init.ModItems;
 import reliquary.reference.Colors;
 import reliquary.util.InventoryHelper;
@@ -37,11 +33,6 @@ public class HeroMedallionPane extends Component {
 	@Override
 	public boolean shouldRender() {
 		return !InventoryHelper.getCorrectItemFromEitherHand(Minecraft.getInstance().player, ModItems.HERO_MEDALLION.get()).isEmpty();
-	}
-
-	@Override
-	public int getPadding() {
-		return 1;
 	}
 
 	@Override

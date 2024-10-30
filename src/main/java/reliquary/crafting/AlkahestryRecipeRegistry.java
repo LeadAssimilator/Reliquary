@@ -1,6 +1,6 @@
 package reliquary.crafting;
 
-import net.minecraftforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;

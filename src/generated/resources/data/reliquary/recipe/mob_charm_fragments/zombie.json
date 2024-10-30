@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "reliquary:zombie_heart"
+    },
+    "S": {
+      "item": "minecraft:rotten_flesh"
+    },
+    "T": {
+      "item": "minecraft:bone"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "STS",
+    "PPP"
+  ],
+  "result": {
+    "components": {
+      "reliquary:entity_name": "minecraft:zombie"
+    },
+    "count": 1,
+    "id": "reliquary:mob_charm_fragment"
+  }
+}

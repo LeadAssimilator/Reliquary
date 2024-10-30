@@ -1,5 +1,6 @@
 package reliquary.items;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -12,37 +13,29 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.joml.Vector3f;
-import reliquary.entities.SpecialSnowballEntity;
-import reliquary.reference.Settings;
-import reliquary.util.NBTHelper;
+import reliquary.entities.SpecialSnowball;
+import reliquary.init.ModDataComponents;
+import reliquary.reference.Config;
 import reliquary.util.TooltipBuilder;
 
 import javax.annotation.Nullable;
 
 public class IceMagusRodItem extends ToggleableItem {
 	public static final DustParticleOptions ICE_PARTICLE = new DustParticleOptions(new Vector3f(99 / 255F, 196 / 255F, 253 / 255F), 1);
-	private static final String SNOWBALLS_TAG = "snowballs";
 
 	public IceMagusRodItem() {
-		super(new Properties().stacksTo(1).setNoRepair());
+		super(new Properties().stacksTo(1).setNoRepair().rarity(Rarity.EPIC));
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack rod, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		tooltipBuilder.charge(this, ".tooltip2", getSnowballCharge(rod));
+	protected void addMoreInformation(ItemStack rod, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
+		tooltipBuilder.charge(this, ".tooltip2", getSnowballs(rod));
 		if (isEnabled(rod)) {
 			tooltipBuilder.absorbActive(Items.SNOWBALL.getName(new ItemStack(Items.SNOWBALL)).getString());
 		} else {
 			tooltipBuilder.absorb();
 		}
-	}
-
-	private static int getSnowballCharge(ItemStack rod) {
-		return NBTHelper.getInt(SNOWBALLS_TAG, rod);
 	}
 
 	@Override
@@ -51,15 +44,15 @@ public class IceMagusRodItem extends ToggleableItem {
 	}
 
 	private int getSnowballCap() {
-		return this instanceof GlacialStaffItem ? Settings.COMMON.items.glacialStaff.snowballLimit.get() : Settings.COMMON.items.iceMagusRod.snowballLimit.get();
+		return this instanceof GlacialStaffItem ? Config.COMMON.items.glacialStaff.snowballLimit.get() : Config.COMMON.items.iceMagusRod.snowballLimit.get();
 	}
 
 	int getSnowballCost() {
-		return this instanceof GlacialStaffItem ? Settings.COMMON.items.glacialStaff.snowballCost.get() : Settings.COMMON.items.iceMagusRod.snowballCost.get();
+		return this instanceof GlacialStaffItem ? Config.COMMON.items.glacialStaff.snowballCost.get() : Config.COMMON.items.iceMagusRod.snowballCost.get();
 	}
 
 	private int getSnowballWorth() {
-		return this instanceof GlacialStaffItem ? Settings.COMMON.items.glacialStaff.snowballWorth.get() : Settings.COMMON.items.iceMagusRod.snowballWorth.get();
+		return this instanceof GlacialStaffItem ? Config.COMMON.items.glacialStaff.snowballWorth.get() : Config.COMMON.items.iceMagusRod.snowballWorth.get();
 	}
 
 	@Override
@@ -67,33 +60,36 @@ public class IceMagusRodItem extends ToggleableItem {
 		ItemStack stack = player.getItemInHand(hand);
 		//acts as a cooldown.
 		player.swing(hand);
-		if (!player.isShiftKeyDown() && (getSnowballCharge(stack) >= getSnowballCost() || player.isCreative())) {
+		if (!player.isShiftKeyDown() && (getSnowballs(stack) >= getSnowballCost() || player.isCreative())) {
 			level.playSound(null, player.blockPosition(), SoundEvents.ARROW_SHOOT, SoundSource.NEUTRAL, 0.5F, 0.4F / (level.random.nextFloat() * 0.4F + 0.8F));
-			SpecialSnowballEntity snowball = new SpecialSnowballEntity(level, player, this instanceof GlacialStaffItem);
+			SpecialSnowball snowball = new SpecialSnowball(level, player, this instanceof GlacialStaffItem);
 			snowball.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 2.4F, 1.0F);
 			level.addFreshEntity(snowball);
 			if (!player.isCreative()) {
-				NBTHelper.putInt(SNOWBALLS_TAG, stack, getSnowballCharge(stack) - getSnowballCost());
+				setSnowballs(stack, getSnowballs(stack) - getSnowballCost());
 			}
 			return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
 		}
 		return super.use(level, player, hand);
 	}
 
-	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
+	public static int getSnowballs(ItemStack stack) {
+		return stack.getOrDefault(ModDataComponents.SNOWBALLS, 0);
+	}
+
+	protected void setSnowballs(ItemStack stack, int snowballs) {
+		stack.set(ModDataComponents.SNOWBALLS, snowballs);
 	}
 
 	@Override
-	public void inventoryTick(ItemStack rod, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		if (world.isClientSide || world.getGameTime() % 10 != 0 || !(entity instanceof Player)) {
+	public void inventoryTick(ItemStack rod, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % 10 != 0) {
 			return;
 		}
 		if (isEnabled(rod)) {
-			int snowCharge = getSnowballCharge(rod);
+			int snowCharge = getSnowballs(rod);
 			consumeAndCharge((Player) entity, getSnowballCap() - snowCharge, getSnowballWorth(), Items.SNOWBALL, 16,
-					chargeToAdd -> NBTHelper.putInt(SNOWBALLS_TAG, rod, snowCharge + chargeToAdd));
+					chargeToAdd -> setSnowballs(rod, snowCharge + chargeToAdd));
 		}
 	}
 }

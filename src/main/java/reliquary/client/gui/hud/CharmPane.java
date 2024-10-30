@@ -5,7 +5,7 @@ import net.minecraft.world.item.ItemStack;
 import reliquary.client.gui.components.Box;
 import reliquary.client.gui.components.Component;
 import reliquary.client.gui.components.ItemStackPane;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -77,7 +77,7 @@ public class CharmPane extends Component {
 	}
 
 	public static void addCharmToDraw(ItemStack charm, int slot) {
-		int maxMobCharmsToDisplay = Settings.COMMON.items.mobCharm.maxCharmsToDisplay.get();
+		int maxMobCharmsToDisplay = Config.COMMON.items.mobCharm.maxCharmsToDisplay.get();
 		lock.lock();
 		if (charmsToDraw.size() == maxMobCharmsToDisplay) {
 			charmsToDraw.remove(0);
@@ -99,7 +99,7 @@ public class CharmPane extends Component {
 		for (Iterator<Map.Entry<Integer, CharmToDraw>> iterator = charmsToDraw.entrySet().iterator(); iterator.hasNext(); ) {
 			Map.Entry<Integer, CharmToDraw> entry = iterator.next();
 			CharmToDraw charmToDraw = entry.getValue();
-			if (Boolean.TRUE.equals(Settings.COMMON.items.mobCharm.keepAlmostDestroyedDisplayed.get()) && charmToDraw.getCharm().getDamageValue() >= (charmToDraw.getCharm().getMaxDamage() * 0.9)) {
+			if (Boolean.TRUE.equals(Config.COMMON.items.mobCharm.keepAlmostDestroyedDisplayed.get()) && charmToDraw.getCharm().getDamageValue() >= (charmToDraw.getCharm().getMaxDamage() * 0.9)) {
 				continue;
 			}
 

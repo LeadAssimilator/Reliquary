@@ -12,9 +12,8 @@ import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.PacketDistributor;
-import reliquary.network.PacketFXConcussiveExplosion;
-import reliquary.network.PacketHandler;
+import net.neoforged.neoforge.network.PacketDistributor;
+import reliquary.network.SpawnConcussiveExplosionParticlesPayload;
 import reliquary.util.RandHelper;
 
 import javax.annotation.Nullable;
@@ -22,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ConcussiveExplosion extends Explosion {
-	private final Level world;
+	private final Level level;
 	private final Vec3 pos;
 	protected final Entity exploder;
 	private float explosionSize;
@@ -30,8 +29,9 @@ public class ConcussiveExplosion extends Explosion {
 	private final Player shootingEntity;
 
 	public ConcussiveExplosion(Level level, @Nullable Entity entity, @Nullable Player player, Vec3 pos, float size, boolean isFlaming) {
-		super(level, entity, null, null, pos.x(), pos.y(), pos.z(), size, isFlaming, BlockInteraction.DESTROY);
-		this.world = level;
+		super(level, entity, null, null, pos.x(), pos.y(), pos.z(), size, isFlaming,
+				BlockInteraction.DESTROY, ParticleTypes.EXPLOSION, ParticleTypes.EXPLOSION_EMITTER, SoundEvents.GENERIC_EXPLODE);
+		this.level = level;
 		exploder = entity;
 		shootingEntity = player;
 		this.pos = pos;
@@ -47,7 +47,7 @@ public class ConcussiveExplosion extends Explosion {
 		float var1 = explosionSize;
 
 		explosionSize *= 2.0F;
-		List<Entity> var9 = world.getEntities(exploder,
+		List<Entity> var9 = level.getEntities(exploder,
 				new AABB(pos.add(-explosionSize - 1.0D, -explosionSize - 1.0D, -explosionSize - 1.0D),
 						pos.add(explosionSize + 1.0D, explosionSize + 1.0D, explosionSize + 1.0D)));
 
@@ -92,12 +92,12 @@ public class ConcussiveExplosion extends Explosion {
 	 */
 	@Override
 	public void finalizeExplosion(boolean spawnParticles) {
-		world.playSound(null, BlockPos.containing(pos.x(), pos.y(), pos.z()), SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 4.0F, (1.0F + RandHelper.getRandomMinusOneToOne(world.random) * 0.2F) * 0.7F);
+		level.playSound(null, BlockPos.containing(pos.x(), pos.y(), pos.z()), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 4.0F, (1.0F + RandHelper.getRandomMinusOneToOne(level.random) * 0.2F) * 0.7F);
 
 		if (explosionSize >= 2.0F) {
-			world.addParticle(ParticleTypes.EXPLOSION_EMITTER, pos.x(), pos.y(), pos.z(), 1.0D, 0.0D, 0.0D);
+			level.addParticle(ParticleTypes.EXPLOSION_EMITTER, pos.x(), pos.y(), pos.z(), 1.0D, 0.0D, 0.0D);
 		} else {
-			world.addParticle(ParticleTypes.EXPLOSION, pos.x(), pos.y(), pos.z(), 1.0D, 0.0D, 0.0D);
+			level.addParticle(ParticleTypes.EXPLOSION, pos.x(), pos.y(), pos.z(), 1.0D, 0.0D, 0.0D);
 		}
 	}
 
@@ -108,14 +108,14 @@ public class ConcussiveExplosion extends Explosion {
 
 	public static class GrenadeConcussiveExplosion extends ConcussiveExplosion {
 
-		GrenadeConcussiveExplosion(Level world, Entity entity, Player par3Entity, Vec3 pos) {
-			super(world, entity, par3Entity, pos, (float) 4.0, false);
+		GrenadeConcussiveExplosion(Level level, Entity entity, Player par3Entity, Vec3 pos) {
+			super(level, entity, par3Entity, pos, (float) 4.0, false);
 		}
 
 		@Override
 		protected boolean affectEntity(Entity entity) {
 			return (super.affectEntity(entity) && !(entity instanceof Player))
-					|| (entity instanceof Player player && exploder.getCustomName() != null && exploder.getCustomName().getString().contains((player).getGameProfile().getName()));
+					|| (entity instanceof Player player && exploder != null && exploder.getCustomName() != null && exploder.getCustomName().getString().contains((player).getGameProfile().getName()));
 		}
 	}
 
@@ -131,8 +131,7 @@ public class ConcussiveExplosion extends Explosion {
 		var11.explode();
 		var11.finalizeExplosion(false);
 
-		PacketHandler.sendToAllAround(new PacketFXConcussiveExplosion(size, pos), new PacketDistributor.TargetPoint(entity.getX(), entity.getY(), entity.getZ(), 96.0D, entity.getCommandSenderWorld().dimension()));
-
+		PacketDistributor.sendToPlayersTrackingEntity(entity, new SpawnConcussiveExplosionParticlesPayload(size, pos));
 	}
 
 	static void grenadeConcussiveExplosion(Entity entity, Player player, Vec3 pos) {
@@ -140,8 +139,6 @@ public class ConcussiveExplosion extends Explosion {
 		var11.explode();
 		var11.finalizeExplosion(false);
 
-		PacketHandler.sendToAllAround(new PacketFXConcussiveExplosion((float) 4.0, pos), new PacketDistributor.TargetPoint(entity.getX(), entity.getY(), entity.getZ(), 96.0D, entity.getCommandSenderWorld().dimension()));
-
+		PacketDistributor.sendToPlayersTrackingEntity(entity, new SpawnConcussiveExplosionParticlesPayload((float) 4.0, pos));
 	}
-
 }

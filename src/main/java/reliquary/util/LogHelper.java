@@ -1,17 +1,13 @@
 package reliquary.util;
 
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Marker;
-import org.apache.logging.log4j.MarkerManager;
+import org.apache.logging.log4j.*;
 import org.apache.logging.log4j.message.Message;
-import reliquary.reference.Reference;
+import reliquary.Reliquary;
 
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class LogHelper {
-	private static final Marker MOD_MARKER = MarkerManager.getMarker(Reference.MOD_ID);
-	private static final Logger logger = LogManager.getLogger(Reference.MOD_ID);
+	private static final Marker MOD_MARKER = MarkerManager.getMarker(Reliquary.MOD_ID);
+	private static final Logger logger = LogManager.getLogger(Reliquary.MOD_ID);
 
 	public static void log(Level level, Marker marker, Message message) {
 		logger.log(level, marker, message);
@@ -22,7 +18,7 @@ public class LogHelper {
 	}
 
 	public static void log(Level level, Marker marker, String message) {
-		logger.log(level, marker, "[{}] {}", Reference.MOD_ID, message);
+		logger.log(level, marker, "[{}] {}", Reliquary.MOD_ID, message);
 	}
 
 	public static void log(Level level, Marker marker, String format, Object... params) {

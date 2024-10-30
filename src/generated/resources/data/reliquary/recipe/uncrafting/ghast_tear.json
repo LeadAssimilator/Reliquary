@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:catalyzing_gland"
+    },
+    {
+      "item": "reliquary:catalyzing_gland"
+    },
+    {
+      "item": "reliquary:catalyzing_gland"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "minecraft:ghast_tear"
+  }
+}

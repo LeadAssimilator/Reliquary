@@ -1,23 +1,26 @@
 package reliquary.util.potions;
 
+import com.google.common.collect.Iterables;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import org.apache.commons.lang3.stream.Streams;
 import reliquary.init.ModItems;
+import reliquary.reference.Config;
 import reliquary.reference.Reference;
-import reliquary.reference.Settings;
 import reliquary.util.LogHelper;
 import reliquary.util.RegistryHelper;
-import reliquary.util.StackHelper;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.regex.Pattern;
 
 public class PotionMap {
-	private PotionMap() {}
+	private PotionMap() {
+	}
 
 	protected static final List<PotionIngredient> ingredients = new ArrayList<>();
 	public static final List<PotionEssence> potionCombinations = new ArrayList<>();
@@ -34,8 +37,8 @@ public class PotionMap {
 	}
 
 	private static void setDefaultInConfigIfEmpty() {
-		if (Settings.COMMON.potions.potionMap.get().isEmpty()) {
-			Settings.COMMON.potions.potionMap.set(getDefaultConfigPotionMap());
+		if (Config.COMMON.potions.potionMap.get().isEmpty()) {
+			Config.COMMON.potions.potionMap.set(getDefaultConfigPotionMap());
 		}
 	}
 
@@ -46,7 +49,7 @@ public class PotionMap {
 		for (PotionEssence essence : potionCombinations) {
 			boolean found = false;
 			for (PotionEssence uniqueEssence : uniquePotionEssences) {
-				if (effectsEqual(essence.getEffects(), uniqueEssence.getEffects())) {
+				if (effectsEqual(essence.getPotionContents(), uniqueEssence.getPotionContents())) {
 					found = true;
 					break;
 				}
@@ -64,19 +67,19 @@ public class PotionMap {
 	private static void addUniquePotions(PotionEssence essence) {
 		uniquePotions.add(essence);
 
-		if (Boolean.TRUE.equals(Settings.COMMON.potions.redstoneAndGlowstone.get())) {
+		if (Boolean.TRUE.equals(Config.COMMON.potions.redstoneAndGlowstone.get())) {
 			PotionEssence redstone = essence.copy();
-			redstone.setEffects(XRPotionHelper.augmentPotionEffects(redstone.getEffects(), 1, 0));
+			redstone.setPotionContents(PotionHelper.augmentPotionContents(redstone.getPotionContents(), 1, 0));
 			redstone.setRedstoneCount(1);
 			uniquePotions.add(redstone);
 
 			PotionEssence glowstone = essence.copy();
-			glowstone.setEffects(XRPotionHelper.augmentPotionEffects(redstone.getEffects(), 0, 1));
+			glowstone.setPotionContents(PotionHelper.augmentPotionContents(redstone.getPotionContents(), 0, 1));
 			glowstone.setGlowstoneCount(1);
 			uniquePotions.add(glowstone);
 
 			PotionEssence redstoneGlowstone = essence.copy();
-			redstoneGlowstone.setEffects(XRPotionHelper.augmentPotionEffects(redstone.getEffects(), 1, 1));
+			redstoneGlowstone.setPotionContents(PotionHelper.augmentPotionContents(redstone.getPotionContents(), 1, 1));
 			redstoneGlowstone.setRedstoneCount(1);
 			redstoneGlowstone.setGlowstoneCount(1);
 			uniquePotions.add(redstoneGlowstone);
@@ -91,16 +94,16 @@ public class PotionMap {
 		for (PotionIngredient ingredient1 : ingredients) {
 			for (PotionIngredient ingredient2 : ingredients) {
 				if (ingredient1.getItem().getItem() != ingredient2.getItem().getItem()) {
-					PotionEssence twoEssence = new PotionEssence.Builder().setIngredients(ingredient1, ingredient2).setEffects(XRPotionHelper.combineIngredients(ingredient1, ingredient2)).build();
-					if (!twoEssence.getEffects().isEmpty() && twoEssence.getEffects().size() <= Settings.COMMON.potions.maxEffectCount.get()) {
+					PotionEssence twoEssence = new PotionEssence.Builder().setIngredients(ingredient1, ingredient2).setPotionContents(PotionHelper.combineIngredients(ingredient1, ingredient2)).build();
+					if (twoEssence.getPotionContents().hasEffects() && Iterables.size(twoEssence.getPotionContents().getAllEffects()) <= Config.COMMON.potions.maxEffectCount.get()) {
 						addPotionCombination(twoEssence);
 
-						if (Boolean.TRUE.equals(Settings.COMMON.potions.threeIngredients.get())) {
+						if (Boolean.TRUE.equals(Config.COMMON.potions.threeIngredients.get())) {
 							for (PotionIngredient ingredient3 : ingredients) {
 								if ((ingredient3.getItem().getItem() != ingredient1.getItem().getItem()) && ingredient3.getItem().getItem() != ingredient2.getItem().getItem()) {
-									PotionEssence threeEssence = new PotionEssence.Builder().setIngredients(ingredient1, ingredient2, ingredient3).setEffects(XRPotionHelper.combineIngredients(ingredient1, ingredient2, ingredient3)).build();
+									PotionEssence threeEssence = new PotionEssence.Builder().setIngredients(ingredient1, ingredient2, ingredient3).setPotionContents(PotionHelper.combineIngredients(ingredient1, ingredient2, ingredient3)).build();
 
-									if (!effectsEqual(twoEssence.getEffects(), threeEssence.getEffects())) {
+									if (!effectsEqual(twoEssence.getPotionContents(), threeEssence.getPotionContents())) {
 										addPotionCombination(threeEssence);
 									}
 								}
@@ -119,7 +122,7 @@ public class PotionMap {
 				return;
 			}
 			//the same effect potion id with different duration is turned on by config option
-			if (effectsEqual(essence.getEffects(), newEssence.getEffects(), Settings.COMMON.potions.differentDurations.get()) && !effectsEqual(essence.getEffects(), newEssence.getEffects())) {
+			if (effectsEqual(essence.getPotionContents(), newEssence.getPotionContents(), Config.COMMON.potions.differentDurations.get()) && !effectsEqual(essence.getPotionContents(), newEssence.getPotionContents())) {
 				return;
 			}
 		}
@@ -146,18 +149,21 @@ public class PotionMap {
 		return true;
 	}
 
-	private static boolean effectsEqual(List<MobEffectInstance> a, List<MobEffectInstance> b) {
-		return effectsEqual(a, b, true);
+	private static boolean effectsEqual(PotionContents contents1, PotionContents contents2) {
+		return effectsEqual(contents1, contents2, true);
 	}
 
-	private static boolean effectsEqual(List<MobEffectInstance> a, List<MobEffectInstance> b, boolean compareDuration) {
-		if (a.size() != b.size()) {
+	private static boolean effectsEqual(PotionContents contents1, PotionContents contents2, boolean compareDuration) {
+		List<MobEffectInstance> effects1 = Streams.of(contents1.getAllEffects()).toList();
+		List<MobEffectInstance> effects2 = Streams.of(contents2.getAllEffects()).toList();
+
+		if (effects1.size() != effects2.size()) {
 			return false;
 		}
 
-		for (MobEffectInstance effectA : a) {
+		for (MobEffectInstance effectA : effects1) {
 			boolean found = false;
-			for (MobEffectInstance effectB : b) {
+			for (MobEffectInstance effectB : effects2) {
 				if (effectA.getDescriptionId().equals(effectB.getDescriptionId()) && (!compareDuration || effectA.getDuration() == effectB.getDuration()) && (effectA.getAmplifier() == effectB.getAmplifier())) {
 					found = true;
 					break;
@@ -175,7 +181,7 @@ public class PotionMap {
 		ingredients.clear();
 
 		Pattern validEntry = Pattern.compile("[a-z_:0-9]+=[a-z_0-9:.|;]+");
-		for (String entry : Settings.COMMON.potions.potionMap.get()) {
+		for (String entry : Config.COMMON.potions.potionMap.get()) {
 			if (validEntry.matcher(entry).matches()) {
 				String[] entryParts = entry.split("=");
 
@@ -193,7 +199,7 @@ public class PotionMap {
 	}
 
 	private static void addItemEffectsToPotionMap(String name, String[] effects) {
-		StackHelper.getItemStackFromName(name).ifPresent(stack -> {
+		getItemStackFromName(name).ifPresent(stack -> {
 			PotionIngredient ingredient = new PotionIngredient(stack);
 			for (String effect : effects) {
 				String[] effectValues = effect.split("\\|");
@@ -217,7 +223,7 @@ public class PotionMap {
 		addPotionIngredient(potionMap, Items.SUGAR, speed(3, 0), haste(3, 0));
 		addPotionIngredient(potionMap, Items.APPLE, heal(0), hboost(3, 0), cure(0));
 		addPotionIngredient(potionMap, Items.COAL, blind(1), absorb(3, 0), invis(1), wither(0, 0));
-		addPotionIngredient(potionMap, Items.FEATHER, jump(3, 0), weak(1, 0));
+		addPotionIngredient(potionMap, Items.FEATHER, jump(3, 0), weak(1, 0), flight(1));
 		addPotionIngredient(potionMap, Items.WHEAT_SEEDS, harm(0), hboost(3, 0));
 		addPotionIngredient(potionMap, Items.WHEAT, heal(0), hboost(3, 0));
 		addPotionIngredient(potionMap, Items.FLINT, harm(0), dboost(3, 0));
@@ -240,7 +246,7 @@ public class PotionMap {
 
 		//TIER TWO INGREDIENTS, one of the effects of each will always be a one, slightly increased duration vs. TIER ONE
 		addPotionIngredient(potionMap, Items.SPIDER_EYE, vision(4), poison(2));
-		addPotionIngredient(potionMap, Items.BLAZE_POWDER, dboost(4, 0), harm(0));
+		addPotionIngredient(potionMap, Items.BLAZE_POWDER, dboost(4, 0), harm(0), flight(1));
 		addPotionIngredient(potionMap, Items.IRON_INGOT, resist(4, 0), slow(2, 0));
 		addPotionIngredient(potionMap, Items.STRING, slow(2, 0), fatigue(2, 0));
 		addPotionIngredient(potionMap, Items.BREAD, hboost(4, 0), satur(5));
@@ -264,7 +270,7 @@ public class PotionMap {
 		addPotionIngredient(potionMap, Items.PUMPKIN_PIE, invis(1), fireres(1), speed(3, 0), haste(3, 0), absorb(3, 0), regen(0, 0)); //combination of ingredients, strong.
 		addPotionIngredient(potionMap, Items.MAGMA_CREAM, dboost(4, 0), harm(0), resist(4, 0), fireres(2)); //also a combo, strong.
 		addPotionIngredient(potionMap, Items.GLISTERING_MELON_SLICE, dboost(3, 0), haste(3, 0), heal(0), speed(4, 0)); //combo
-		addPotionIngredient(potionMap, Items.GHAST_TEAR, regen(3, 0), absorb(5, 0));
+		addPotionIngredient(potionMap, Items.GHAST_TEAR, regen(3, 0), absorb(5, 0), flight(2));
 		addPotionIngredient(potionMap, Items.FERMENTED_SPIDER_EYE, vision(4), poison(2), speed(3, 0), haste(3, 0)); //combo
 		addPotionIngredient(potionMap, Items.GOLDEN_CARROT, dboost(3, 0), haste(3, 0), hboost(3, 0), vision(3)); //combo
 		addPotionIngredient(potionMap, Items.GOLD_INGOT, dboost(4, 0), haste(4, 0), cure(0)); //combo
@@ -276,12 +282,12 @@ public class PotionMap {
 		addPotionIngredient(potionMap, ModItems.CHELICERAE.get(), poison(3), weak(3, 0));
 		addPotionIngredient(potionMap, ModItems.SLIME_PEARL.get(), resist(5, 0), absorb(5, 0));
 		addPotionIngredient(potionMap, ModItems.KRAKEN_SHELL_FRAGMENT.get(), absorb(5, 0), breath(5));
-		addPotionIngredient(potionMap, ModItems.BAT_WING.get(), jump(5, 0), weak(3, 0));
+		addPotionIngredient(potionMap, ModItems.BAT_WING.get(), jump(5, 0), weak(3, 0), flight(2));
 		addPotionIngredient(potionMap, Items.GOLDEN_APPLE, cure(1));
 		addPotionIngredient(potionMap, Items.GOLDEN_APPLE, cure(2));
 
 		//TIER FOUR INGREDIENTS, these carry multiple one-potency effects and have the most duration for any given effect.
-		addPotionIngredient(potionMap, Items.DIAMOND, resist(6, 1), absorb(6, 1), fireres(6), cure(0));
+		addPotionIngredient(potionMap, Items.DIAMOND, resist(6, 1), absorb(6, 1), fireres(6), cure(0), flight(1));
 		addPotionIngredient(potionMap, ModItems.WITHERED_RIB.get(), wither(2, 1), weak(3, 1), slow(3, 1), fatigue(3, 1), cure(0));
 		addPotionIngredient(potionMap, Items.ENDER_EYE, dboost(6, 1), invis(6), speed(6, 1), harm(1));
 		addPotionIngredient(potionMap, Items.EMERALD, haste(6, 1), speed(6, 1), hboost(6, 1), cure(1));
@@ -364,6 +370,10 @@ public class PotionMap {
 		return effectString(Reference.JUMP, Integer.toString(duration), Integer.toString(potency));
 	}
 
+	private static String flight(int duration) {
+		return effectString(Reference.FLIGHT, Integer.toString(duration), Integer.toString(0));
+	}
+
 	private static String nausea(int duration) {
 		return effectString(Reference.NAUSEA, Integer.toString(duration), Integer.toString(0));
 	}
@@ -405,5 +415,9 @@ public class PotionMap {
 		Arrays.stream(effects).forEach(effectsString::add);
 
 		potionMap.add(String.format("%s=%s", itemRegistryName, effectsString));
+	}
+
+	public static Optional<ItemStack> getItemStackFromName(String name) {
+		return BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(name)).map(ItemStack::new);
 	}
 }

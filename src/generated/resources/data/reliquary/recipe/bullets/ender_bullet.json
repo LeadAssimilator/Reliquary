@@ -1,0 +1,42 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:bullets/seeker_bullet"
+    },
+    {
+      "item": "reliquary:nebulous_heart"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "id": "reliquary:bullets/ender_bullet"
+  }
+}

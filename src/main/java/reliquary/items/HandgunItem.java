@@ -1,34 +1,35 @@
 package reliquary.items;
 
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.registries.ForgeRegistries;
-import reliquary.entities.shot.ShotEntityBase;
+import net.minecraft.world.phys.HitResult;
+import reliquary.entities.shot.ShotBase;
+import reliquary.init.ModDataComponents;
 import reliquary.init.ModItems;
 import reliquary.init.ModSounds;
-import reliquary.reference.Settings;
-import reliquary.util.NBTHelper;
+import reliquary.reference.Config;
 import reliquary.util.RegistryHelper;
 import reliquary.util.TooltipBuilder;
-import reliquary.util.potions.XRPotionHelper;
+import reliquary.util.potions.PotionHelper;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -36,51 +37,49 @@ import java.util.function.Supplier;
 public class HandgunItem extends ItemBase {
 	private static final int HANDGUN_RELOAD_SKILL_OFFSET = 10;
 	private static final int HANDGUN_COOLDOWN_SKILL_OFFSET = 5;
-	private static final String MAGAZINE_TYPE_TAG = "magazineType";
 
-	public interface IShotEntityFactory {
-		ShotEntityBase createShot(Level world, Player player, InteractionHand hand);
+	public interface IShotFactory {
+		ShotBase createShot(Level level, Player player, InteractionHand hand);
 	}
 
-	private final Map<String, IShotEntityFactory> magazineShotFactories = new HashMap<>();
-	private final Map<String, Supplier<BulletItem>> magazineBulletItems = new HashMap<>();
+	private final Map<ResourceLocation, IShotFactory> magazineShotFactories = new HashMap<>();
+	private final Map<ResourceLocation, Supplier<BulletItem>> magazineBulletItems = new HashMap<>();
 
-	public void registerMagazine(String magazineRegistryName, IShotEntityFactory factory, Supplier<BulletItem> getBulletItem) {
+	public void registerMagazine(ResourceLocation magazineRegistryName, IShotFactory factory, Supplier<BulletItem> getBulletItem) {
 		magazineShotFactories.put(magazineRegistryName, factory);
 		magazineBulletItems.put(magazineRegistryName, getBulletItem);
 	}
 
 	public HandgunItem() {
-		super(new Properties().stacksTo(1), Settings.COMMON.disable.disableHandgun::get);
+		super(new Properties().stacksTo(1), Config.COMMON.disable.disableHandgun);
 	}
 
 	private short getBulletCount(ItemStack handgun) {
-		return NBTHelper.getShort("bulletCount", handgun);
+		return handgun.getOrDefault(ModDataComponents.BULLET_COUNT, (short) 0);
 	}
 
 	public ItemStack getBulletStack(ItemStack handgun) {
-		String magazineType = getMagazineType(handgun);
-		if (!magazineBulletItems.containsKey(magazineType)) {
-			return new ItemStack(ModItems.EMPTY_BULLET.get(), 1);
-		}
-
-		BulletItem bulletItem = magazineBulletItems.get(magazineType).get();
-		ItemStack bulletStack = new ItemStack(bulletItem, getBulletCount(handgun));
-		XRPotionHelper.addPotionEffectsToStack(bulletStack, getPotionEffects(handgun));
-
-		return bulletStack;
+		return getMagazineType(handgun).map(magazineType -> {
+			if (!magazineBulletItems.containsKey(magazineType)) {
+				return new ItemStack(ModItems.EMPTY_BULLET.get(), 1);
+			}
+			BulletItem bulletItem = magazineBulletItems.get(magazineType).get();
+			ItemStack bulletStack = new ItemStack(bulletItem, getBulletCount(handgun));
+			bulletStack.set(DataComponents.POTION_CONTENTS, getPotionContents(handgun));
+			return bulletStack;
+		}).orElseGet(() -> new ItemStack(ModItems.EMPTY_BULLET.get(), 1));
 	}
 
 	private void setBulletCount(ItemStack handgun, short bulletCount) {
-		NBTHelper.putShort("bulletCount", handgun, bulletCount);
+		handgun.set(ModDataComponents.BULLET_COUNT, bulletCount);
 	}
 
-	private String getMagazineType(ItemStack handgun) {
-		return NBTHelper.getString(MAGAZINE_TYPE_TAG, handgun);
+	private Optional<ResourceLocation> getMagazineType(ItemStack handgun) {
+		return Optional.ofNullable(handgun.get(ModDataComponents.MAGAZINE_TYPE));
 	}
 
 	private void setMagazineType(ItemStack handgun, ItemStack magazine) {
-		NBTHelper.putString(MAGAZINE_TYPE_TAG, handgun, RegistryHelper.getItemRegistryName(magazine.getItem()));
+		handgun.set(ModDataComponents.MAGAZINE_TYPE, RegistryHelper.getRegistryName(magazine.getItem()));
 	}
 
 	private boolean hasAmmo(ItemStack handgun) {
@@ -88,26 +87,24 @@ public class HandgunItem extends ItemBase {
 	}
 
 	public long getCooldown(ItemStack handgun) {
-		return NBTHelper.getLong("coolDownTime", handgun);
+		return handgun.getOrDefault(ModDataComponents.COOLDOWN_TIME, 0L);
 	}
 
 	private void setCooldown(ItemStack handgun, long coolDownTime) {
-		NBTHelper.putLong("coolDownTime", handgun, coolDownTime);
+		handgun.set(ModDataComponents.COOLDOWN_TIME, coolDownTime);
 	}
 
-	private List<MobEffectInstance> getPotionEffects(ItemStack handgun) {
-		return XRPotionHelper.getPotionEffectsFromStack(handgun);
+	private PotionContents getPotionContents(ItemStack handgun) {
+		return handgun.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
 	}
 
-	private void setPotionEffects(ItemStack handgun, List<MobEffectInstance> potionEffects) {
-		XRPotionHelper.cleanPotionEffects(handgun);
-		XRPotionHelper.addPotionEffectsToStack(handgun, potionEffects);
+	private void setPotionEffects(ItemStack handgun, PotionContents potionEffects) {
+		PotionHelper.cleanPotionEffects(handgun);
+		PotionHelper.addPotionContentsToStack(handgun, potionEffects);
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack handgun, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		ItemStack bullets = getBulletStack(handgun);
+	protected void addMoreInformation(ItemStack handgun, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
 		if (hasAmmo(handgun)) {
 			tooltipBuilder
 					.data(this, ".tooltip2", getBulletCount(handgun), getMagazineName(handgun))
@@ -121,8 +118,7 @@ public class HandgunItem extends ItemBase {
 	}
 
 	private String getMagazineName(ItemStack handgun) {
-		Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(getMagazineType(handgun)));
-		return item != null ? item.getName(new ItemStack(item)).getString() : "";
+		return getMagazineType(handgun).map(magazineType -> BuiltInRegistries.ITEM.get(magazineType).getName(new ItemStack(Items.AIR)).getString()).orElse("");
 	}
 
 	@Override
@@ -139,15 +135,15 @@ public class HandgunItem extends ItemBase {
 		return oldStack.getItem() != newStack.getItem() || getBulletCount(oldStack) < getBulletCount(newStack);
 	}
 
-	private boolean isCooldownOver(Level world, ItemStack handgun) {
-		return getCooldown(handgun) < world.getGameTime();
+	private boolean isCooldownOver(Level level, ItemStack handgun) {
+		return getCooldown(handgun) < level.getGameTime();
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack handgun = player.getItemInHand(hand);
 
-		if (getBulletCount(handgun) > 0 && !isCooldownOver(world, handgun) && otherHandgunCooledDownMore(player, hand, handgun)) {
+		if (getBulletCount(handgun) > 0 && !isCooldownOver(level, handgun) && otherHandgunCooledDownMore(player, hand, handgun)) {
 			return new InteractionResultHolder<>(InteractionResult.PASS, handgun);
 		}
 
@@ -184,21 +180,21 @@ public class HandgunItem extends ItemBase {
 	}
 
 	@Override
-	public int getUseDuration(ItemStack handgun) {
+	public int getUseDuration(ItemStack handgun, LivingEntity livingEntity) {
 		return getItemUseDuration();
 	}
 
 	@Override
-	public void releaseUsing(ItemStack handgun, Level worldIn, LivingEntity entityLiving, int timeLeft) {
-		if (!(entityLiving instanceof Player player)) {
+	public void releaseUsing(ItemStack handgun, Level level, LivingEntity livingEntity, int timeLeft) {
+		if (!(livingEntity instanceof Player player)) {
 			return;
 		}
 
 		// fire bullet
 		if (hasAmmo(handgun)) {
 			if (isCooldownOver(player.level(), handgun)) {
-				setFiringCooldown(handgun, worldIn, player);
-				fireBullet(handgun, worldIn, player, handgun == player.getMainHandItem() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+				setFiringCooldown(handgun, level, player);
+				fireBullet(handgun, level, player, handgun == player.getMainHandItem() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
 			}
 			return;
 		}
@@ -209,7 +205,7 @@ public class HandgunItem extends ItemBase {
 		getMagazineSlot(player).ifPresent(slot -> {
 			ItemStack magazine = player.getInventory().items.get(slot);
 			setMagazineType(handgun, magazine);
-			setPotionEffects(handgun, XRPotionHelper.getPotionEffectsFromStack(magazine));
+			setPotionEffects(handgun, magazine.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY));
 			magazine.shrink(1);
 			if (magazine.isEmpty()) {
 				player.getInventory().items.set(slot, ItemStack.EMPTY);
@@ -218,11 +214,11 @@ public class HandgunItem extends ItemBase {
 			spawnEmptyMagazine(player);
 			setBulletCount(handgun, (short) 8);
 			player.level().playSound(null, player.blockPosition(), ModSounds.HANDGUN_LOAD.get(), SoundSource.PLAYERS, 0.25F, 1.0F);
-			setFiringCooldown(handgun, worldIn, player);
+			setFiringCooldown(handgun, level, player);
 		});
 
 		if (getBulletCount(handgun) == 0) {
-			setPotionEffects(handgun, Collections.emptyList());
+			setPotionEffects(handgun, PotionContents.EMPTY);
 		}
 	}
 
@@ -240,47 +236,57 @@ public class HandgunItem extends ItemBase {
 		}
 	}
 
-	private void setFiringCooldown(ItemStack handgun, Level worldIn, Player player) {
-		setCooldown(handgun, worldIn.getGameTime() + getPlayerFiringCooldown(player));
+	private void setFiringCooldown(ItemStack handgun, Level level, Player player) {
+		setCooldown(handgun, level.getGameTime() + getPlayerFiringCooldown(player));
 		setSecondHandgunFiringCooldown(player, handgun);
 	}
 
 	private int getPlayerFiringCooldown(Player player) {
-		return Settings.COMMON.items.handgun.maxSkillLevel.get() + HANDGUN_COOLDOWN_SKILL_OFFSET
-				- Math.min(player.experienceLevel, Settings.COMMON.items.handgun.maxSkillLevel.get());
+		return Config.COMMON.items.handgun.maxSkillLevel.get() + HANDGUN_COOLDOWN_SKILL_OFFSET
+				- Math.min(player.experienceLevel, Config.COMMON.items.handgun.maxSkillLevel.get());
 	}
 
 	private int getItemUseDuration() {
-		return HANDGUN_RELOAD_SKILL_OFFSET + Settings.COMMON.items.handgun.maxSkillLevel.get();
+		return HANDGUN_RELOAD_SKILL_OFFSET + Config.COMMON.items.handgun.maxSkillLevel.get();
 	}
 
-	private void fireBullet(ItemStack handgun, Level world, Player player, InteractionHand hand) {
-		if (!world.isClientSide) {
-			String magazineType = getMagazineType(handgun);
-			if (!magazineShotFactories.containsKey(magazineType)) {
-				return;
-			}
-			spawnShotEntity(handgun, world, player, hand, magazineType);
-			world.playSound(null, player.blockPosition(), ModSounds.HANDGUN_SHOT.get(), SoundSource.PLAYERS, 0.5F, 1.2F);
+	private void fireBullet(ItemStack handgun, Level level, Player player, InteractionHand hand) {
+		if (!level.isClientSide) {
+			getMagazineType(handgun).filter(magazineShotFactories::containsKey).ifPresent(magazineType -> {
+				spawnShotEntity(handgun, level, player, hand, magazineType);
+				level.playSound(null, player.blockPosition(), ModSounds.HANDGUN_SHOT.get(), SoundSource.PLAYERS, 0.5F, 1.2F);
 
-			setBulletCount(handgun, (short) (getBulletCount(handgun) - 1));
-			if (getBulletCount(handgun) == 0) {
-				setPotionEffects(handgun, Collections.emptyList());
-			}
-			spawnCasing(player);
+				setBulletCount(handgun, (short) (getBulletCount(handgun) - 1));
+				if (getBulletCount(handgun) == 0) {
+					setPotionEffects(handgun, PotionContents.EMPTY);
+				}
+				spawnCasing(player);
+			});
 		}
 	}
 
-	private void spawnShotEntity(ItemStack handgun, Level world, Player player, InteractionHand hand, String magazineType) {
+	private void spawnShotEntity(ItemStack handgun, Level level, Player player, InteractionHand hand, ResourceLocation magazineType) {
 		if (!magazineShotFactories.containsKey(magazineType)) {
 			return;
 		}
-		ShotEntityBase shot = magazineShotFactories.get(magazineType).createShot(world, player, hand).addPotionEffects(getPotionEffects(handgun));
-		double motionX = -Mth.sin(player.getYRot() / 180.0F * (float) Math.PI) * Mth.cos(player.getXRot() / 180.0F * (float) Math.PI);
-		double motionZ = Mth.cos(player.getYRot() / 180.0F * (float) Math.PI) * Mth.cos(player.getXRot() / 180.0F * (float) Math.PI);
-		double motionY = -Mth.sin(player.getXRot() / 180.0F * (float) Math.PI);
-		shot.shoot(motionX, motionY, motionZ, 1.2F, 1.0F);
-		world.addFreshEntity(shot);
+		ShotBase shot = magazineShotFactories.get(magazineType).createShot(level, player, hand).addPotionContents(getPotionContents(handgun));
+		
+		if (level instanceof ServerLevel serverLevel) {
+			int simulationDistance = serverLevel.getServer().getPlayerList().getSimulationDistance();
+			HitResult hitResult = player.pick(simulationDistance, 1, false);
+			float velocity = 1.2F;
+			float inaccuracy = 0.2F;
+			if (hitResult.getType() != HitResult.Type.MISS) {
+				shot.shoot(hitResult.getLocation().x - shot.getX(), hitResult.getLocation().y - shot.getY(), hitResult.getLocation().z - shot.getZ(), velocity, inaccuracy);
+			} else {
+				double motionX = -Mth.sin(player.getYRot() / 180.0F * (float) Math.PI) * Mth.cos(player.getXRot() / 180.0F * (float) Math.PI);
+				double motionZ = Mth.cos(player.getYRot() / 180.0F * (float) Math.PI) * Mth.cos(player.getXRot() / 180.0F * (float) Math.PI);
+				double motionY = -Mth.sin(player.getXRot() / 180.0F * (float) Math.PI);
+				shot.shoot(motionX, motionY, motionZ, velocity, inaccuracy);
+			}
+		}
+
+		level.addFreshEntity(shot);
 	}
 
 	private void spawnEmptyMagazine(Player player) {
@@ -320,6 +326,6 @@ public class HandgunItem extends ItemBase {
 	}
 
 	private int getPlayerReloadDelay(Player player) {
-		return Settings.COMMON.items.handgun.maxSkillLevel.get() + HANDGUN_RELOAD_SKILL_OFFSET - Math.min(player.experienceLevel, Settings.COMMON.items.handgun.maxSkillLevel.get());
+		return Config.COMMON.items.handgun.maxSkillLevel.get() + HANDGUN_RELOAD_SKILL_OFFSET - Math.min(player.experienceLevel, Config.COMMON.items.handgun.maxSkillLevel.get());
 	}
 }

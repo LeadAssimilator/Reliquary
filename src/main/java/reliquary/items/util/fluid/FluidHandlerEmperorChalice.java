@@ -1,31 +1,19 @@
 package reliquary.items.util.fluid;
 
-import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidType;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import reliquary.init.ModItems;
 
-import javax.annotation.Nullable;
-
-public class FluidHandlerEmperorChalice implements IFluidHandlerItem, ICapabilityProvider {
+public class FluidHandlerEmperorChalice implements IFluidHandlerItem {
 
 	public static final FluidStack BUCKET_OF_WATER = new FluidStack(Fluids.WATER, FluidType.BUCKET_VOLUME);
 	private final ItemStack chalice;
 
 	public FluidHandlerEmperorChalice(ItemStack chalice) {
 		this.chalice = chalice;
-	}
-
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
-		return ForgeCapabilities.FLUID_HANDLER_ITEM.orEmpty(cap, LazyOptional.of(() -> this));
 	}
 
 	@Override

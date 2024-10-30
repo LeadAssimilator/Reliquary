@@ -4,8 +4,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import reliquary.init.ModItems;
 import reliquary.util.potions.PotionEssence;
+import reliquary.util.potions.PotionHelper;
 import reliquary.util.potions.PotionMap;
-import reliquary.util.potions.XRPotionHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +21,7 @@ public class CauldronRecipeMaker {
 			List<ItemStack> inputs = new ArrayList<>();
 
 			ItemStack potionEssence = new ItemStack(ModItems.POTION_ESSENCE.get(), 1);
-			XRPotionHelper.addPotionEffectsToStack(potionEssence, essence.getEffects());
+			PotionHelper.addPotionContentsToStack(potionEssence, essence.getPotionContents());
 
 			inputs.add(potionEssence);
 
@@ -50,13 +50,13 @@ public class CauldronRecipeMaker {
 			lingeringInputs.add(new ItemStack(ModItems.EMPTY_POTION_VIAL.get(), 3));
 
 			ItemStack output = new ItemStack(ModItems.POTION.get(), 3);
-			XRPotionHelper.addPotionEffectsToStack(output, essence.getEffects());
+			PotionHelper.addPotionContentsToStack(output, essence.getPotionContents());
 
 			ItemStack outputSplash = new ItemStack(ModItems.SPLASH_POTION.get(), 3);
-			XRPotionHelper.addPotionEffectsToStack(outputSplash, essence.getEffects());
+			PotionHelper.addPotionContentsToStack(outputSplash, essence.getPotionContents());
 
 			ItemStack outputLingering = new ItemStack(ModItems.LINGERING_POTION.get(), 3);
-			XRPotionHelper.addPotionEffectsToStack(outputLingering, essence.getEffects());
+			PotionHelper.addPotionContentsToStack(outputLingering, essence.getPotionContents());
 
 			recipes.add(new CauldronRecipeJEI(inputs, output));
 			recipes.add(new CauldronRecipeJEI(splashInputs, outputSplash));

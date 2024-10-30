@@ -4,37 +4,44 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import reliquary.blocks.tile.PassivePedestalBlockEntity;
 import reliquary.items.ICreativeTabItemGenerator;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
 import reliquary.util.WorldHelper;
 
 import javax.annotation.Nullable;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public class PassivePedestalBlock extends Block implements EntityBlock, ICreativeTabItemGenerator {
+public class PassivePedestalBlock extends Block implements EntityBlock, ICreativeTabItemGenerator, SimpleWaterloggedBlock {
 	static final DirectionProperty FACING = DirectionProperty.create("facing", Direction.Plane.HORIZONTAL);
+	static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 	private static final VoxelShape SHAPE = Stream.of(
 			Block.box(4, 10, 4, 12, 11, 12),
 			Block.box(3, 0, 3, 13, 1, 13),
@@ -48,8 +55,8 @@ public class PassivePedestalBlock extends Block implements EntityBlock, ICreativ
 	).reduce((v1, v2) -> Shapes.join(v1, v2, BooleanOp.OR)).get();
 
 	public PassivePedestalBlock() {
-		super(Properties.of().mapColor(MapColor.STONE).strength(1.5F, 2.0F));
-		registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+		super(Properties.of().mapColor(MapColor.STONE).strength(1.5F, 2.0F).forceSolidOn());
+		registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(WATERLOGGED, false));
 	}
 
 	@Override
@@ -62,12 +69,12 @@ public class PassivePedestalBlock extends Block implements EntityBlock, ICreativ
 	}
 
 	protected boolean isDisabled() {
-		return Boolean.TRUE.equals(Settings.COMMON.disable.disablePassivePedestal.get());
+		return Boolean.TRUE.equals(Config.COMMON.disable.disablePassivePedestal.get());
 	}
 
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-		builder.add(FACING);
+		builder.add(FACING, WATERLOGGED);
 	}
 
 	@Nullable
@@ -76,46 +83,62 @@ public class PassivePedestalBlock extends Block implements EntityBlock, ICreativ
 		if (context.getPlayer() == null) {
 			return defaultBlockState();
 		}
-		return defaultBlockState().setValue(FACING, context.getPlayer().getDirection());
+		return defaultBlockState()
+				.setValue(FACING, context.getPlayer().getDirection())
+				.setValue(WATERLOGGED, context.getLevel().getFluidState(context.getClickedPos()).getType() == Fluids.WATER);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
-	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(hand);
-		if (level.isClientSide) {
-			return (!heldItem.isEmpty() || player.isCrouching()) ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
-		}
-
-		if (!(level.getBlockEntity(pos) instanceof PassivePedestalBlockEntity)) {
-			return InteractionResult.FAIL;
-		}
-
-		Optional<PassivePedestalBlockEntity> pedestal = WorldHelper.getBlockEntity(level, pos, PassivePedestalBlockEntity.class);
-		if (heldItem.isEmpty()) {
-			if (player.isCrouching() && pedestal.isPresent()) {
-				pedestal.get().removeAndSpawnItem(level);
-				return InteractionResult.SUCCESS;
-			} else {
-				return InteractionResult.FAIL;
-			}
-		} else {
-			return pedestal.map(ped -> InventoryHelper.getItemHandlerFrom(ped)
-					.map(itemHandler -> InventoryHelper.tryAddingPlayerCurrentItem(player, itemHandler, InteractionHand.MAIN_HAND) ? InteractionResult.SUCCESS : InteractionResult.CONSUME)
-					.orElse(InteractionResult.CONSUME)).orElse(InteractionResult.CONSUME);
-		}
+	public FluidState getFluidState(BlockState state) {
+		return Boolean.TRUE.equals(state.getValue(WATERLOGGED)) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
 	}
 
-	@SuppressWarnings("deprecation")
+	@Override
+	public BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor level, BlockPos currentPos, BlockPos facingPos) {
+		if (facing != Direction.DOWN && Boolean.TRUE.equals(state.getValue(WATERLOGGED))) {
+			level.scheduleTick(currentPos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+		}
+
+		return super.updateShape(state, facing, facingState, level, currentPos, facingPos);
+	}
+
+	@Override
+	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+		if (level.isClientSide) {
+			return player.isCrouching() ? InteractionResult.SUCCESS : InteractionResult.FAIL;
+		}
+
+		return WorldHelper.getBlockEntity(level, pos, PassivePedestalBlockEntity.class)
+				.map(pedestal -> {
+					if (player.isCrouching()) {
+						pedestal.removeAndSpawnItem(level);
+						return InteractionResult.SUCCESS;
+					}
+					return InteractionResult.FAIL;
+				}).orElse(InteractionResult.FAIL);
+	}
+
+	@Override
+	protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+		if (level.isClientSide) {
+			return ItemInteractionResult.SUCCESS;
+		}
+
+		return WorldHelper.getBlockEntity(level, pos, PassivePedestalBlockEntity.class).map(pedestal ->
+				InventoryHelper.executeOnItemHandlerAt(level, pos, state, pedestal, itemHandler ->
+						InventoryHelper.tryAddingPlayerCurrentItem(player, itemHandler, InteractionHand.MAIN_HAND) ? ItemInteractionResult.SUCCESS : ItemInteractionResult.CONSUME, ItemInteractionResult.CONSUME
+				)
+		).orElse(ItemInteractionResult.FAIL);
+	}
+
 	@Override
 	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
 		WorldHelper.getBlockEntity(level, pos, PassivePedestalBlockEntity.class).ifPresent(pedestal -> pedestal.dropPedestalInventory(level));
 		super.onRemove(state, level, pos, newState, isMoving);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return SHAPE;
 	}
 
@@ -129,7 +152,7 @@ public class PassivePedestalBlock extends Block implements EntityBlock, ICreativ
 		Player player = event.getEntity();
 
 		//should only really use the event in case that the player is sneaking with something in offhand and empty mainhand
-		if (!player.isCrouching() || !player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty()) {
+		if (player.level().isClientSide() || !player.isCrouching() || !player.getMainHandItem().isEmpty() || player.getOffhandItem().isEmpty()) {
 			return;
 		}
 

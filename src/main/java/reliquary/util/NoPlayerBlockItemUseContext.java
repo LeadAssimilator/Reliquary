@@ -10,8 +10,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class NoPlayerBlockItemUseContext extends BlockPlaceContext {
-	public NoPlayerBlockItemUseContext(Level world, BlockPos pos, ItemStack stack, Direction face) {
-		super(world, null, InteractionHand.MAIN_HAND, stack, new BlockHitResult(new Vec3(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D), face, pos, false));
+	public NoPlayerBlockItemUseContext(Level level, BlockPos pos, ItemStack stack, Direction face) {
+		super(level, null, InteractionHand.MAIN_HAND, stack, new BlockHitResult(new Vec3(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D), face, pos, false));
 	}
 
 	@Override

@@ -12,24 +12,22 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
+import reliquary.Reliquary;
 import reliquary.crafting.AlkahestryCraftingRecipe;
 import reliquary.init.ModItems;
 import reliquary.items.AlkahestryTomeItem;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
 
 public class AlkahestryCraftingRecipeCategory extends AlkahestryRecipeCategory<AlkahestryCraftingRecipe> {
-	public static final RecipeType<AlkahestryCraftingRecipe> TYPE = RecipeType.create(Reference.MOD_ID, "alkahestry_crafting", AlkahestryCraftingRecipe.class);
+	public static final RecipeType<AlkahestryCraftingRecipe> TYPE = RecipeType.create(Reliquary.MOD_ID, "alkahestry_crafting", AlkahestryCraftingRecipe.class);
 	private final IDrawable background;
 	private final Component localizedName;
 
 	public AlkahestryCraftingRecipeCategory(IGuiHelper guiHelper) {
 		super(guiHelper);
-		background = guiHelper.createDrawable(new ResourceLocation(Reference.DOMAIN + "textures/gui/jei/backgrounds.png"), 0, 0, 95, 76);
-		localizedName = Component.translatable("jei." + Reference.MOD_ID + ".recipe.alkahest_crafting");
+		background = guiHelper.createDrawable(Reliquary.getRL("textures/gui/jei/backgrounds.png"), 0, 0, 95, 76);
+		localizedName = Component.translatable("jei." + Reliquary.MOD_ID + ".recipe.alkahest_crafting");
 	}
 
 	@Override
@@ -54,7 +52,7 @@ public class AlkahestryCraftingRecipeCategory extends AlkahestryRecipeCategory<A
 		ItemStack tome = ingredientsInputs.get(1).getItems()[0];
 		ItemStack output = recipe.getResult();
 		ItemStack tomeOutput = AlkahestryTomeItem.setCharge(new ItemStack(ModItems.ALKAHESTRY_TOME.get()),
-				Settings.COMMON.items.alkahestryTome.chargeLimit.get() - recipe.getChargeNeeded());
+				AlkahestryTomeItem.getChargeLimit() - recipe.getChargeNeeded());
 
 		builder.addSlot(RecipeIngredientRole.INPUT, 1, 1).addItemStack(input);
 		builder.addSlot(RecipeIngredientRole.INPUT, 19, 1).addItemStack(tome);

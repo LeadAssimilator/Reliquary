@@ -2,8 +2,9 @@ package reliquary.items;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -15,23 +16,22 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.UseAnim;
-import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandler;
+import reliquary.Reliquary;
 import reliquary.api.IPedestal;
 import reliquary.api.IPedestalActionItem;
+import reliquary.init.ModDataComponents;
 import reliquary.items.util.IScrollableItem;
-import reliquary.items.util.fluid.FluidHandlerHeroMedallion;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
-import reliquary.util.NBTHelper;
+import reliquary.util.PlayerInventoryProvider;
 import reliquary.util.TooltipBuilder;
 import reliquary.util.XpHelper;
 
@@ -39,21 +39,13 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class HeroMedallionItem extends ToggleableItem implements IPedestalActionItem, IScrollableItem {
-	private static final String EXPERIENCE_TAG = "experience";
-
 	public HeroMedallionItem() {
-		super(new Properties().durability(0).setNoRepair());
+		super(new Properties().durability(0).setNoRepair().rarity(Rarity.EPIC));
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
 	public boolean isFoil(ItemStack stack) {
-		return NBTHelper.getBoolean("enabled", stack);
+		return stack.getOrDefault(ModDataComponents.ENABLED, false);
 	}
 
 	@Override
@@ -62,9 +54,8 @@ public class HeroMedallionItem extends ToggleableItem implements IPedestalAction
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack medallion, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		int experience = NBTHelper.getInt(EXPERIENCE_TAG, medallion);
+	protected void addMoreInformation(ItemStack medallion, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
+		int experience = getExperience(medallion);
 		int levels = XpHelper.getLevelForExperience(experience);
 		int remainingExperience = experience - XpHelper.getExperienceForLevel(levels);
 		tooltipBuilder.data(this, ".tooltip2", levels, remainingExperience);
@@ -84,13 +75,29 @@ public class HeroMedallionItem extends ToggleableItem implements IPedestalAction
 	}
 
 	@Override
-	public void inventoryTick(ItemStack stack, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		if (world.isClientSide || !isEnabled(stack) || world.getGameTime() % 10 != 0) {
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || !isEnabled(stack) || level.getGameTime() % 10 != 0) {
 			return;
 		}
-		if (entity instanceof Player player && (!player.isUsingItem() || player.getUseItem() != stack)) {
+		if ((!player.isUsingItem() || player.getUseItem() != stack)) {
 			drainExperienceLevel(stack, player);
 		}
+
+		repairItemsInPlayersInventory(stack, player);
+	}
+
+	private void repairItemsInPlayersInventory(ItemStack heroMedallion, Player player) {
+		long cooldownTime = heroMedallion.getOrDefault(ModDataComponents.COOLDOWN_TIME, 0L);
+		if (cooldownTime > player.level().getGameTime()) {
+			return;
+		}
+		heroMedallion.set(ModDataComponents.COOLDOWN_TIME, player.level().getGameTime() + Config.COMMON.items.heroMedallion.repairCoolDown.get());
+
+		PlayerInventoryProvider.get().runOnPlayerInventoryHandlers(player, stack -> {
+			if (canRepairWithXp(stack)) {
+				repairItemWithXp(heroMedallion, stack);
+			}
+		});
 	}
 
 	private void drainExperienceLevel(ItemStack stack, Player player) {
@@ -129,11 +136,11 @@ public class HeroMedallionItem extends ToggleableItem implements IPedestalAction
 	}
 
 	public int getExperience(ItemStack stack) {
-		return NBTHelper.getInt(EXPERIENCE_TAG, stack);
+		return stack.getOrDefault(ModDataComponents.EXPERIENCE, 0);
 	}
 
-	public void setExperience(ItemStack stack, int i) {
-		NBTHelper.putInt(EXPERIENCE_TAG, stack, i);
+	public void setExperience(ItemStack stack, int experience) {
+		stack.set(ModDataComponents.EXPERIENCE, experience);
 	}
 
 	@Override
@@ -169,15 +176,15 @@ public class HeroMedallionItem extends ToggleableItem implements IPedestalAction
 	}
 
 	@Override
-	public void releaseUsing(ItemStack stack, Level worldIn, LivingEntity entityLiving, int timeLeft) {
-		if (entityLiving.level().isClientSide || isEnabled(stack) || !(entityLiving instanceof Player) || getUseDuration(stack) - timeLeft > 10) {
+	public void releaseUsing(ItemStack stack, Level level, LivingEntity livingEntity, int timeLeft) {
+		if (livingEntity.level().isClientSide || isEnabled(stack) || !(livingEntity instanceof Player) || getUseDuration(stack, livingEntity) - timeLeft > 10) {
 			return;
 		}
 
-		drainExperience(stack, (Player) entityLiving, entityLiving.level(), 1);
+		drainExperience(stack, (Player) livingEntity, livingEntity.level(), 1);
 	}
 
-	private void spawnXpOnGround(ItemStack stack, Level world, BlockPos hitPos, int xpLevels) {
+	private void spawnXpOnGround(ItemStack stack, Level level, BlockPos hitPos, int xpLevels) {
 		int xp = XpHelper.getExperienceForLevel(xpLevels);
 
 		if (getExperience(stack) >= xp) {
@@ -186,48 +193,59 @@ public class HeroMedallionItem extends ToggleableItem implements IPedestalAction
 			while (xp > 0) {
 				int j = ExperienceOrb.getExperienceValue(xp);
 				xp -= j;
-				world.addFreshEntity(new ExperienceOrb(world, hitPos.getX(), hitPos.getY(), hitPos.getZ(), j));
+				level.addFreshEntity(new ExperienceOrb(level, hitPos.getX(), hitPos.getY(), hitPos.getZ(), j));
 			}
 		}
-	}
-
-	@Override
-	public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-		return new FluidHandlerHeroMedallion(stack);
 	}
 
 	@Override
 	public void update(ItemStack stack, Level level, IPedestal pedestal) {
-		List<BlockPos> posInRange = pedestal.getPedestalsInRange(level, Settings.COMMON.items.heroMedallion.pedestalRange.get());
+		List<BlockPos> posInRange = pedestal.getPedestalsInRange(level, Config.COMMON.items.heroMedallion.pedestalRange.get());
 		for (BlockPos pedestalPos : posInRange) {
-			InventoryHelper.getInventoryAtPos(level, pedestalPos).ifPresent(pedestalInventory -> {
-				List<ItemStack> toRepair = getMendingItemsForRepair(pedestalInventory);
-
-				for (ItemStack itemToRepair : toRepair) {
-					int xpToRepair = Math.min(Settings.COMMON.items.heroMedallion.pedestalRepairStepXP.get(), getExperience(stack));
-					int durabilityToRepair = Math.min(XpHelper.xpToDurability(xpToRepair), itemToRepair.getDamageValue());
-
-					setExperience(stack, getExperience(stack) - XpHelper.durabilityToXp(durabilityToRepair));
-					itemToRepair.setDamageValue(itemToRepair.getDamageValue() - durabilityToRepair);
-				}
-			});
+			InventoryHelper.runOnInventoryAt(level, pedestalPos, pedestalInventory -> repairItemsWithXp(stack, pedestalInventory));
 		}
-		pedestal.setActionCoolDown(Settings.COMMON.items.heroMedallion.pedestalCoolDown.get());
+		pedestal.setActionCoolDown(Config.COMMON.items.heroMedallion.repairCoolDown.get());
 	}
 
-	private List<ItemStack> getMendingItemsForRepair(IItemHandler inventory) {
+	private void repairItemsWithXp(ItemStack stack, IItemHandler inventory) {
+		for (ItemStack itemToRepair : getItemsRepairedWithXp(inventory)) {
+			repairItemWithXp(stack, itemToRepair);
+		}
+	}
+
+	private void repairItemWithXp(ItemStack heroMedallion, ItemStack itemToRepair) {
+		int xpToRepair = Math.min(Config.COMMON.items.heroMedallion.repairStepXP.get(), getExperience(heroMedallion));
+		int durabilityToRepair = Math.min(XpHelper.xpToDurability(xpToRepair), itemToRepair.getDamageValue());
+
+		setExperience(heroMedallion, getExperience(heroMedallion) - XpHelper.durabilityToXp(durabilityToRepair));
+		itemToRepair.setDamageValue(itemToRepair.getDamageValue() - durabilityToRepair);
+	}
+
+	private List<ItemStack> getItemsRepairedWithXp(IItemHandler inventory) {
 		NonNullList<ItemStack> stacksToReturn = NonNullList.create();
 
 		for (int slot = 0; slot < inventory.getSlots(); slot++) {
 			ItemStack stack = inventory.getStackInSlot(slot);
-
 			//only getting items that are more than 1 damaged to not waste xp
-			if (stack.isDamaged() && stack.getDamageValue() > 1 && stack.getEnchantmentLevel(Enchantments.MENDING) > 0) {
+			if (canRepairWithXp(stack)) {
 				stacksToReturn.add(stack);
 			}
 		}
-
 		return stacksToReturn;
+	}
+
+	private boolean canRepairWithXp(ItemStack stack) {
+		if (stack.isDamaged() && stack.getDamageValue() > 1) {
+			ItemEnchantments itemenchantments = stack.getTagEnchantments();
+
+			for (Holder<Enchantment> enchantment : itemenchantments.keySet()) {
+				if (enchantment.value().effects().has(EnchantmentEffectComponents.REPAIR_WITH_XP)) {
+					return true;
+				}
+			}
+
+		}
+		return false;
 	}
 
 	@Override
@@ -250,29 +268,29 @@ public class HeroMedallionItem extends ToggleableItem implements IPedestalAction
 		if (isEnabled(stack)) {
 			int newLevels = Math.max(0, getStopAtXpLevel(stack) + levelAddition);
 			setStopAtXpLevel(stack, newLevels);
-			player.displayClientMessage(Component.translatable("chat." + Reference.MOD_ID + ".hero_medallion.fill_levels", Component.literal(String.valueOf(newLevels)).withStyle(ChatFormatting.GREEN)), true);
+			player.displayClientMessage(Component.translatable("chat." + Reliquary.MOD_ID + ".hero_medallion.fill_levels", Component.literal(String.valueOf(newLevels)).withStyle(ChatFormatting.GREEN)), true);
 		} else {
 			int newLevels = Math.max(1, getDrainXpLevels(stack) + levelAddition);
 			setDrainXpLevels(stack, newLevels);
-			player.displayClientMessage(Component.translatable("chat." + Reference.MOD_ID + ".hero_medallion.drain_levels", Component.literal(String.valueOf(newLevels)).withStyle(ChatFormatting.RED)), true);
+			player.displayClientMessage(Component.translatable("chat." + Reliquary.MOD_ID + ".hero_medallion.drain_levels", Component.literal(String.valueOf(newLevels)).withStyle(ChatFormatting.RED)), true);
 		}
 
 		return InteractionResult.SUCCESS;
 	}
 
 	private int getDrainXpLevels(ItemStack stack) {
-		return NBTHelper.getInt(stack, "drainXpLevels").orElse(1);
+		return stack.getOrDefault(ModDataComponents.DRAIN_XP_LEVELS, 1);
 	}
 
 	private int getStopAtXpLevel(ItemStack stack) {
-		return NBTHelper.getInt(stack, "stopAtXpLevel").orElse(0);
+		return stack.getOrDefault(ModDataComponents.STOP_AT_XP_LEVEL, 0);
 	}
 
 	private void setDrainXpLevels(ItemStack stack, int levels) {
-		NBTHelper.putInt("drainXpLevels", stack, levels);
+		stack.set(ModDataComponents.DRAIN_XP_LEVELS, levels);
 	}
 
 	private void setStopAtXpLevel(ItemStack stack, int levels) {
-		NBTHelper.putInt("stopAtXpLevel", stack, levels);
+		stack.set(ModDataComponents.STOP_AT_XP_LEVEL, levels);
 	}
 }

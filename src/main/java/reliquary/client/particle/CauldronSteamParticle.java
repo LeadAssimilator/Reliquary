@@ -1,31 +1,25 @@
 package reliquary.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.client.particle.ParticleRenderType;
-import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.client.particle.TextureSheetParticle;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraft.client.particle.*;
+import net.minecraft.core.particles.ColorParticleOption;
 
 import javax.annotation.Nullable;
 
-@OnlyIn(Dist.CLIENT)
 public class CauldronSteamParticle extends TextureSheetParticle {
 	private final SpriteSet spriteSet;
 
-	private CauldronSteamParticle(ClientLevel world, ColorParticleData particleData, double x, double y, double z, double ySpeed, SpriteSet spriteSet) {
-		super(world, x, y, z, 0, 0, 0);
-		rCol = particleData.getRed();
-		gCol = particleData.getGreen();
-		bCol = particleData.getBlue();
+	private CauldronSteamParticle(ClientLevel level, ColorParticleOption particleOption, double x, double y, double z, double ySpeed, SpriteSet spriteSet) {
+		super(level, x, y, z, 0, 0, 0);
+		rCol = particleOption.getRed();
+		gCol = particleOption.getGreen();
+		bCol = particleOption.getBlue();
 		xd *= 0.1F;
 		yd *= 0.1F;
 		zd *= 0.1F;
 		yd += ySpeed;
 		this.spriteSet = spriteSet;
-		lifetime = 8 + world.random.nextInt(32);
+		lifetime = 8 + level.random.nextInt(32);
 	}
 
 	@Override
@@ -59,8 +53,7 @@ public class CauldronSteamParticle extends TextureSheetParticle {
 		return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
 	}
 
-	@OnlyIn(Dist.CLIENT)
-	public static class Provider implements ParticleProvider<SteamColorParticleData> {
+	public static class Provider implements ParticleProvider<ColorParticleOption> {
 		private final SpriteSet spriteSet;
 
 		public Provider(SpriteSet spriteSet) {
@@ -69,8 +62,8 @@ public class CauldronSteamParticle extends TextureSheetParticle {
 
 		@Nullable
 		@Override
-		public Particle createParticle(SteamColorParticleData particleData, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
-			CauldronSteamParticle particle = new CauldronSteamParticle(level, particleData, x, y, z, ySpeed, spriteSet);
+		public Particle createParticle(ColorParticleOption particleOption, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+			CauldronSteamParticle particle = new CauldronSteamParticle(level, particleOption, x, y, z, ySpeed, spriteSet);
 			particle.setSprite(spriteSet.get(particle.age, particle.lifetime));
 			return particle;
 		}

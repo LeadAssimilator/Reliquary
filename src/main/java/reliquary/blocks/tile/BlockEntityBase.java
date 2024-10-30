@@ -1,6 +1,7 @@
 package reliquary.blocks.tile;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
@@ -16,9 +17,9 @@ abstract class BlockEntityBase extends BlockEntity {
 	}
 
 	@Override
-	public CompoundTag getUpdateTag() {
+	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
 		CompoundTag tag = new CompoundTag();
-		saveAdditional(tag);
+		saveAdditional(tag, registries);
 		return tag;
 	}
 
@@ -28,14 +29,14 @@ abstract class BlockEntityBase extends BlockEntity {
 	}
 
 	@Override
-	public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet) {
+	public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider registries) {
 		if (level == null || packet.getTag() == null) {
-			super.onDataPacket(net, packet);
+			super.onDataPacket(net, packet, registries);
 			return;
 		}
 
 		BlockState blockState = level.getBlockState(getBlockPos());
-		load(packet.getTag());
+		loadAdditional(packet.getTag(), registries);
 
 		level.sendBlockUpdated(getBlockPos(), blockState, blockState, 3);
 	}

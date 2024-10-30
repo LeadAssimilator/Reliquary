@@ -10,6 +10,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.FishingHook;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -17,30 +18,25 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.PacketDistributor;
 import reliquary.api.IPedestal;
 import reliquary.api.IPedestalActionItemWrapper;
-import reliquary.entities.EntityXRFakePlayer;
-import reliquary.network.PacketHandler;
-import reliquary.network.PacketPedestalFishHook;
-import reliquary.reference.Settings;
-import reliquary.util.LogHelper;
+import reliquary.entities.ReliquaryFakePlayer;
+import reliquary.network.PedestalFishHookPayload;
+import reliquary.reference.Config;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
-	private static final int PACKET_RANGE = 50;
 	private static final int RANGE = 4;
 	private static final int NO_WATER_COOLDOWN = 100;
 	private static final int BAD_THROW_TIMEOUT = 60;
 	private static final int ABSOLUTE_TIMEOUT = 1200;
 
-	private EntityXRFakePlayer fakePlayer;
+	private ReliquaryFakePlayer fakePlayer;
 	private boolean badThrowChecked;
 	private int ticksSinceLastThrow;
 	private boolean retractFail = false;
@@ -51,7 +47,7 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 
 		if (fakePlayer != null && fakePlayer.fishing != null) {
 			handleHookStates(stack, level, pedestal);
-			syncHookData(level, pedestal);
+			syncHookData(fakePlayer.serverLevel(), pedestal);
 		} else {
 			setupFakePlayer(level, pedestal.getBlockPosition());
 			Optional<BlockPos> p = getBestWaterBlock(level, pedestal);
@@ -70,7 +66,7 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 	private void handleHookStates(ItemStack stack, Level level, IPedestal pedestal) {
 		if (retractFail) {
 			//take care of failed retract
-			if (getTicksCatchable(fakePlayer.fishing) == 0) {
+			if (fakePlayer != null && fakePlayer.fishing != null && fakePlayer.fishing.nibble == 0) {
 				retractHook(pedestal, stack);
 				retractFail = false;
 			}
@@ -78,7 +74,7 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 			//when hook doesn't land in water retract it after some time
 			FishingHook fishingHook = fakePlayer.fishing;
 			//noinspection ConstantConditions
-			if (getCurrentState(fishingHook) != FishingHook.FishHookState.BOBBING) {
+			if (fishingHook.currentState != FishingHook.FishHookState.BOBBING) {
 				retractHook(pedestal, stack);
 			} else {
 				badThrowChecked = true;
@@ -87,8 +83,8 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 			//sometimes hook can get stuck in a bad state so take care of that
 			retractHook(pedestal, stack);
 		} else //noinspection ConstantConditions
-			if (getTicksCatchable(fakePlayer.fishing) > 0 || fakePlayer.fishing.getHookedIn() != null) {
-				if (level.random.nextInt(100) <= Settings.COMMON.blocks.pedestal.fishingWrapperSuccessRate.get()) {
+			if (fakePlayer.fishing.nibble > 0 || fakePlayer.fishing.getHookedIn() != null) {
+				if (level.random.nextInt(100) <= Config.COMMON.blocks.pedestal.fishingWrapperSuccessRate.get()) {
 					retractHook(pedestal, stack);
 				} else {
 					retractFail = true;
@@ -111,13 +107,13 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 		//noinspection ConstantConditions
 		int i = fakePlayer.fishing.retrieve(stack);
 		fakePlayer.fishing = null;
-		stack.hurtAndBreak(i, fakePlayer, p -> {});
+		stack.hurtAndBreak(i, fakePlayer.serverLevel(), fakePlayer, item -> {});
 		//destroy the item when it gets used up
 		if (stack.getCount() == 0) {
 			pedestal.destroyItem();
 		}
 
-		pedestal.setActionCoolDown(Settings.COMMON.blocks.pedestal.fishingWrapperRetractDelay.get() * 20);
+		pedestal.setActionCoolDown(Config.COMMON.blocks.pedestal.fishingWrapperRetractDelay.get() * 20);
 	}
 
 	private Optional<BlockPos> getBestWaterBlock(Level level, IPedestal pedestal) {
@@ -229,18 +225,6 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 		}
 	}
 
-	private static final Field BOBBER_CURRENT_STATE = ObfuscationReflectionHelper.findField(FishingHook.class, "f_37095_");
-
-	private FishingHook.FishHookState getCurrentState(FishingHook fishingHook) {
-		try {
-			return (FishingHook.FishHookState) BOBBER_CURRENT_STATE.get(fishingHook);
-		}
-		catch (IllegalAccessException e) {
-			LogHelper.error("Error getting fishing bobber state", e);
-		}
-		return FishingHook.FishHookState.FLYING;
-	}
-
 	private void addNeighboringWater(Level level, IPedestal pedestal, List<BlockPos> visitedBlocks, List<BlockPos> group, BlockPos pedestalPos, BlockPos blockPos) {
 		if (!visitedBlocks.contains(blockPos)) {
 			checkForWaterAndSearchNeighbors(level, pedestal, visitedBlocks, pedestalPos, blockPos, group);
@@ -258,20 +242,22 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 			}
 
 			@Override
-			public boolean broadcastToPlayer(ServerPlayer pPlayer) {
+			public boolean broadcastToPlayer(ServerPlayer player) {
 				return false;
 			}
 		});
 	}
 
-	private void syncHookData(Level level, IPedestal pedestal) {
+	private void syncHookData(ServerLevel level, IPedestal pedestal) {
 		FishingHook hook = fakePlayer.fishing;
 		BlockPos pedestalPos = pedestal.getBlockPosition();
 
 		if (hook == null) {
-			PacketHandler.sendToAllAround(new PacketPedestalFishHook(pedestal.getBlockPosition(), -1, -1, -1), new PacketDistributor.TargetPoint(pedestalPos.getX(), pedestalPos.getY(), pedestalPos.getZ(), PACKET_RANGE, level.dimension()));
+			PacketDistributor.sendToPlayersTrackingChunk(level, new ChunkPos(pedestalPos),
+					new PedestalFishHookPayload(pedestal.getBlockPosition(), -1, -1, -1));
 		} else {
-			PacketHandler.sendToAllAround(new PacketPedestalFishHook(pedestal.getBlockPosition(), hook.getX(), hook.getY(), hook.getZ()), new PacketDistributor.TargetPoint(pedestalPos.getX(), pedestalPos.getY(), pedestalPos.getZ(), PACKET_RANGE, level.dimension()));
+			PacketDistributor.sendToPlayersTrackingChunk(level, new ChunkPos(pedestalPos),
+					new PedestalFishHookPayload(pedestal.getBlockPosition(), hook.getX(), hook.getY(), hook.getZ()));
 		}
 	}
 
@@ -286,20 +272,15 @@ public class PedestalFishingRodWrapper implements IPedestalActionItemWrapper {
 	public void stop(ItemStack stack, Level level, IPedestal pedestal) {
 		if (fakePlayer != null && fakePlayer.fishing != null) {
 			fakePlayer.fishing.discard();
-			syncHookData(level, pedestal);
+			syncHookData(fakePlayer.serverLevel(), pedestal);
 		}
 	}
 
-	private void setupFakePlayer(Level world, BlockPos pos) {
+	private void setupFakePlayer(Level level, BlockPos pos) {
 		if (fakePlayer == null) {
-			fakePlayer = new EntityXRFakePlayer((ServerLevel) world);
-			fakePlayer.setPos( pos.getX() + 0.5, (double) pos.getY() + 2,  pos.getZ() + 0.5);
+			fakePlayer = new ReliquaryFakePlayer((ServerLevel) level);
+			fakePlayer.setPos(pos.getX() + 0.5, (double) pos.getY() + 2, pos.getZ() + 0.5);
 		}
-	}
-
-	private int getTicksCatchable(@Nullable FishingHook hook) {
-		//noinspection ConstantConditions
-		return ObfuscationReflectionHelper.getPrivateValue(FishingHook.class, hook, "f_37089_");
 	}
 
 	private void setPitchYaw(BlockPos pos) {

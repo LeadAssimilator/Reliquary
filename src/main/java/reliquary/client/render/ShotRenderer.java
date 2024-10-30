@@ -9,17 +9,12 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
-import reliquary.entities.shot.ShotEntityBase;
+import reliquary.entities.shot.ShotBase;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@OnlyIn(Dist.CLIENT)
-public class ShotRenderer<T extends ShotEntityBase> extends EntityRenderer<T> {
+public class ShotRenderer<T extends ShotBase> extends EntityRenderer<T> {
 	private final Map<EntityType<?>, RenderType> entityCutOuts = new HashMap<>();
 
 	public ShotRenderer(EntityRendererProvider.Context context) {
@@ -30,27 +25,25 @@ public class ShotRenderer<T extends ShotEntityBase> extends EntityRenderer<T> {
 	public void render(T entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
 		poseStack.pushPose();
 		poseStack.scale(0.1F, 0.1F, 0.1F);
+		poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
 		PoseStack.Pose pose = poseStack.last();
-		Matrix4f matrix = pose.pose();
-		Matrix3f normal = pose.normal();
 		VertexConsumer vertexBuilder = buffer.getBuffer(getEntityCutOut(entity));
-		addVertex(vertexBuilder, matrix, normal, packedLight, -0.5F, -0.25F, 0, 1);
-		addVertex(vertexBuilder, matrix, normal, packedLight, 0.5F, -0.25F, 1, 1);
-		addVertex(vertexBuilder, matrix, normal, packedLight, 0.5F, 0.75F, 1, 0);
-		addVertex(vertexBuilder, matrix, normal, packedLight, -0.5F, 0.75F, 0, 0);
+		addVertex(vertexBuilder, pose, packedLight, -0.5F, -0.25F, 0, 1);
+		addVertex(vertexBuilder, pose, packedLight, 0.5F, -0.25F, 1, 1);
+		addVertex(vertexBuilder, pose, packedLight, 0.5F, 0.75F, 1, 0);
+		addVertex(vertexBuilder, pose, packedLight, -0.5F, 0.75F, 0, 0);
 		poseStack.popPose();
 
 		super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
 	}
 
-	private void addVertex(VertexConsumer vertexBuilder, Matrix4f matrix, Matrix3f normal, int packedLight, float x, float y, int u, int v) {
-		vertexBuilder.vertex(matrix, x, y, (float) 0.0)
-				.color(255, 255, 255, 255)
-				.uv(u, v)
-				.overlayCoords(OverlayTexture.NO_OVERLAY)
-				.uv2(packedLight)
-				.normal(normal, 0.0F, 1.0F, 0.0F)
-				.endVertex();
+	private void addVertex(VertexConsumer vertexBuilder, PoseStack.Pose pose, int packedLight, float x, float y, int u, int v) {
+		vertexBuilder.addVertex(pose, x, y, (float) 0.0)
+				.setColor(255, 255, 255, 255)
+				.setUv(u, v)
+				.setOverlay(OverlayTexture.NO_OVERLAY)
+				.setLight(packedLight)
+				.setNormal(pose, 0.0F, 1.0F, 0.0F);
 	}
 
 	private RenderType getEntityCutOut(T entity) {

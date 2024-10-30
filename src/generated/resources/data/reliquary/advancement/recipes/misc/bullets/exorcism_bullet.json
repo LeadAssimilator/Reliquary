@@ -1,0 +1,37 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_neutral_bullet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "reliquary:bullets/neutral_bullet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "reliquary:bullets/exorcism_bullet"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_neutral_bullet"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "reliquary:bullets/exorcism_bullet"
+    ]
+  }
+}

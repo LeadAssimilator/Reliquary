@@ -1,0 +1,13 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:alkahestry_enabled"
+    }
+  ],
+  "type": "reliquary:alkahestry_crafting",
+  "charge": 256,
+  "ingredient": {
+    "tag": "c:nether_stars"
+  },
+  "result_count": 2
+}

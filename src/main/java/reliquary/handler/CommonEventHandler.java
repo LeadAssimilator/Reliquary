@@ -1,27 +1,30 @@
 package reliquary.handler;
 
 import com.google.common.collect.Sets;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundPlayerAbilitiesPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraftforge.event.AnvilUpdateEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.level.LevelEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.LogicalSide;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.NeoForgeMod;
+import net.neoforged.neoforge.event.AnvilUpdateEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import reliquary.blocks.PassivePedestalBlock;
 import reliquary.init.ModItems;
 import reliquary.items.RendingGaleItem;
 import reliquary.pedestal.PedestalRegistry;
-import reliquary.util.XRFakePlayerFactory;
+import reliquary.util.FakePlayerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +32,8 @@ import java.util.Set;
 import java.util.UUID;
 
 public class CommonEventHandler {
-	private CommonEventHandler() {}
+	private CommonEventHandler() {
+	}
 
 	private static final Set<IPlayerHurtHandler> playerHurtHandlers = Sets.newTreeSet(new HandlerPriorityComparator());
 	private static final Set<IPlayerDeathHandler> playerDeathHandlers = Sets.newTreeSet(new HandlerPriorityComparator());
@@ -64,7 +68,8 @@ public class CommonEventHandler {
 			return;
 		}
 
-		if (EnchantmentHelper.getEnchantments(event.getRight()).keySet().stream().anyMatch(e -> e == Enchantments.UNBREAKING)) {
+		HolderLookup.RegistryLookup<Enchantment> enchantmentRegistry = event.getPlayer().level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+		if (event.getRight().getEnchantmentLevel(enchantmentRegistry.getOrThrow(Enchantments.MENDING)) > 0 || event.getRight().getEnchantmentLevel(enchantmentRegistry.getOrThrow(Enchantments.UNBREAKING)) > 0) {
 			event.setCanceled(true);
 		}
 	}
@@ -78,7 +83,7 @@ public class CommonEventHandler {
 		}
 	}
 
-	public static void beforePlayerHurt(LivingAttackEvent event) {
+	public static void beforePlayerHurt(LivingIncomingDamageEvent event) {
 		Entity entity = event.getEntity();
 		if (!(entity instanceof Player player)) {
 			return;
@@ -94,7 +99,6 @@ public class CommonEventHandler {
 
 		if (cancel) {
 			event.setCanceled(true);
-			event.setResult(null);
 		}
 	}
 
@@ -114,26 +118,28 @@ public class CommonEventHandler {
 
 		if (cancel) {
 			event.setCanceled(true);
-			event.setResult(null);
 		}
 	}
 
 	public static void onDimensionUnload(LevelEvent.Unload event) {
 		if (event.getLevel() instanceof ServerLevel serverLevel) {
-			XRFakePlayerFactory.unloadWorld(serverLevel);
+			FakePlayerFactory.unloadWorld(serverLevel);
 		}
 	}
 
-	public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-		if (event.side == LogicalSide.CLIENT) {
+	public static void onPlayerTick(PlayerTickEvent.Post event) {
+		Player player = event.getEntity();
+		if (player.level().isClientSide()) {
 			return;
 		}
 
-		Player player = event.player;
 
 		if (player.isUsingItem() && player.getUseItem().getItem() == ModItems.RENDING_GALE.get() && ModItems.RENDING_GALE.get().getMode(player.getUseItem()) == RendingGaleItem.Mode.FLIGHT && ModItems.RENDING_GALE.get().hasFlightCharge(player.getUseItem())) {
 			playersFlightStatus.put(player.getGameProfile().getId(), true);
-			player.getAbilities().mayfly = true;
+			AttributeInstance creativeFlightAttribute = player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT);
+			if (creativeFlightAttribute != null) {
+				creativeFlightAttribute.setBaseValue(1);
+			}
 			((ServerPlayer) player).connection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
 		} else {
 			if (!playersFlightStatus.containsKey(player.getGameProfile().getId())) {
@@ -144,7 +150,10 @@ public class CommonEventHandler {
 			if (isFlying) {
 				playersFlightStatus.put(player.getGameProfile().getId(), false);
 				if (!player.isCreative()) {
-					player.getAbilities().mayfly = false;
+					AttributeInstance creativeFlightAttribute = player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT);
+					if (creativeFlightAttribute != null) {
+						creativeFlightAttribute.setBaseValue(0);
+					}
 					player.getAbilities().flying = false;
 					((ServerPlayer) player).connection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
 				}

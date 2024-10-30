@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": {
+      "tag": "c:gems/diamond"
+    },
+    "S": {
+      "item": "minecraft:skeleton_skull"
+    }
+  },
+  "pattern": [
+    "D D",
+    " S ",
+    "D D"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:withered_rib"
+  }
+}

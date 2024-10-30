@@ -1,21 +1,20 @@
 package reliquary.crafting.conditions;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import com.mojang.serialization.MapCodec;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import reliquary.reference.Config;
 
 public class PassivePedestalEnabledCondition implements ICondition {
-	private static final ResourceLocation ID = new ResourceLocation(Reference.MOD_ID, "passive_pedestal_enabled");
-	public static final SimpleConditionSerializer<PassivePedestalEnabledCondition> SERIALIZER = new SimpleConditionSerializer<>(ID, PassivePedestalEnabledCondition::new);
-
-	@Override
-	public ResourceLocation getID() {
-		return ID;
-	}
+	private static final PassivePedestalEnabledCondition INSTANCE = new PassivePedestalEnabledCondition();
+	public static final MapCodec<PassivePedestalEnabledCondition> CODEC = MapCodec.unit(INSTANCE).stable();
 
 	@Override
 	public boolean test(IContext context) {
-		return !Settings.COMMON.disable.disablePassivePedestal.get();
+		return !Config.COMMON.disable.disablePassivePedestal.get();
+	}
+
+	@Override
+	public MapCodec<? extends ICondition> codec() {
+		return CODEC;
 	}
 }

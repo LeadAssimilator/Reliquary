@@ -1,38 +1,33 @@
 package reliquary.crafting;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.crafting.CraftingHelper;
+import net.neoforged.neoforge.common.crafting.ICustomIngredient;
+import net.neoforged.neoforge.common.crafting.IngredientType;
 import reliquary.init.ModItems;
 import reliquary.items.AlkahestryTomeItem;
 
-import javax.annotation.Nullable;
 import java.util.stream.Stream;
 
 public class AlkahestryChargingRecipe implements CraftingRecipe {
 	private final Ingredient chargingIngredient;
 	private final int chargeToAdd;
 	private final ItemStack recipeOutput;
-	private final ResourceLocation id;
 	private final Ingredient tomeIngredient;
 
-	private AlkahestryChargingRecipe(ResourceLocation id, Ingredient chargingIngredient, int chargeToAdd) {
-		this.id = id;
+	public AlkahestryChargingRecipe(Ingredient chargingIngredient, int chargeToAdd) {
 		this.chargingIngredient = chargingIngredient;
 		this.chargeToAdd = chargeToAdd;
-		tomeIngredient = new TomeIngredient(chargeToAdd);
+		tomeIngredient = new TomeIngredient(chargeToAdd).toVanilla();
 
 		recipeOutput = new ItemStack(ModItems.ALKAHESTRY_TOME.get());
 		AlkahestryTomeItem.addCharge(recipeOutput, chargeToAdd);
@@ -41,11 +36,11 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inv, Level worldIn) {
+	public boolean matches(CraftingInput inv, Level level) {
 		ItemStack tome = ItemStack.EMPTY;
 		int numberOfIngredients = 0;
 
-		for (int x = 0; x < inv.getContainerSize(); x++) {
+		for (int x = 0; x < inv.size(); x++) {
 			ItemStack slotStack = inv.getItem(x);
 
 			if (!slotStack.isEmpty()) {
@@ -73,10 +68,10 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 	}
 
 	@Override
-	public ItemStack assemble(CraftingContainer inv, RegistryAccess registryAccess) {
+	public ItemStack assemble(CraftingInput inv, HolderLookup.Provider registries) {
 		int numberOfIngredients = 0;
 		ItemStack tome = ItemStack.EMPTY;
-		for (int slot = 0; slot < inv.getContainerSize(); slot++) {
+		for (int slot = 0; slot < inv.size(); slot++) {
 			ItemStack stack = inv.getItem(slot);
 			if (chargingIngredient.test(stack)) {
 				numberOfIngredients++;
@@ -105,13 +100,8 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 	}
 
 	@Override
-	public ItemStack getResultItem(RegistryAccess registryAccess) {
+	public ItemStack getResultItem(HolderLookup.Provider registries) {
 		return recipeOutput;
-	}
-
-	@Override
-	public ResourceLocation getId() {
-		return id;
 	}
 
 	@Override
@@ -133,38 +123,39 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 	}
 
 	public static class Serializer implements RecipeSerializer<AlkahestryChargingRecipe> {
+		private static final MapCodec<AlkahestryChargingRecipe> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+								Ingredient.CODEC_NONEMPTY.fieldOf("ingredient").forGetter(recipe -> recipe.chargingIngredient),
+								Codec.INT.fieldOf("charge").forGetter(recipe -> recipe.chargeToAdd)
+						)
+						.apply(instance, AlkahestryChargingRecipe::new));
+		private static final StreamCodec<RegistryFriendlyByteBuf, AlkahestryChargingRecipe> STREAM_CODEC = StreamCodec.composite(
+				Ingredient.CONTENTS_STREAM_CODEC,
+				AlkahestryChargingRecipe::getChargingIngredient,
+				ByteBufCodecs.INT,
+				AlkahestryChargingRecipe::getChargeToAdd,
+				AlkahestryChargingRecipe::new);
+
 		@Override
-		public AlkahestryChargingRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-			if (!json.has("ingredient")) {
-				throw new JsonParseException("No ingredient for alkahestry charging recipe");
-			}
-
-			Ingredient ingredient = CraftingHelper.getIngredient(json.get("ingredient"), false);
-
-			int chargeToAdd = GsonHelper.getAsInt(json, "charge");
-
-			return new AlkahestryChargingRecipe(recipeId, ingredient, chargeToAdd);
+		public MapCodec<AlkahestryChargingRecipe> codec() {
+			return CODEC;
 		}
 
-		@Nullable
 		@Override
-		public AlkahestryChargingRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-			return new AlkahestryChargingRecipe(recipeId, Ingredient.fromNetwork(buffer), buffer.readInt());
-		}
-
-		@Override
-		public void toNetwork(FriendlyByteBuf buffer, AlkahestryChargingRecipe recipe) {
-			recipe.chargingIngredient.toNetwork(buffer);
-			buffer.writeInt(recipe.chargeToAdd);
+		public StreamCodec<RegistryFriendlyByteBuf, AlkahestryChargingRecipe> streamCodec() {
+			return STREAM_CODEC;
 		}
 	}
 
-	private static class TomeIngredient extends Ingredient {
+	private static class TomeIngredient implements ICustomIngredient {
 		private final int chargeToAdd;
 
+		private final ItemStack tome;
+
 		private TomeIngredient(int chargeToAdd) {
-			super(Stream.of(new Ingredient.ItemValue(new ItemStack(ModItems.ALKAHESTRY_TOME.get()))));
+			super();
 			this.chargeToAdd = chargeToAdd;
+			this.tome = new ItemStack(ModItems.ALKAHESTRY_TOME.get());
 		}
 
 		@Override
@@ -173,8 +164,19 @@ public class AlkahestryChargingRecipe implements CraftingRecipe {
 		}
 
 		@Override
+		public Stream<ItemStack> getItems() {
+			return Stream.of(tome);
+		}
+
+		@Override
 		public boolean isSimple() {
 			return false;
+		}
+
+		@Override
+		public IngredientType<?> getType() {
+			//noinspection DataFlowIssue - the ingredient only exists to be returned in the list of ingredients, it is never serialized / deserialized
+			return null;
 		}
 	}
 }

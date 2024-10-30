@@ -372,8 +372,8 @@
     "enchantment.reliquary.severing": "切割",
     "enchantment.reliquary.severing.desc": "大幅增加击杀生物获得对应遗物的概率。",
 
-    "fluid.reliquary.xp_juice_still": "液态经验",
-    "fluid_type.reliquary.xp_juice": "液态经验",
+    "fluid.reliquary.xp_still": "液态经验",
+    "fluid_type.reliquary.experience": "液态经验",
 
     "waila.reliquary.cauldron.lingering": "滞留型药水",
     "waila.reliquary.cauldron.splash": "喷溅型药水",

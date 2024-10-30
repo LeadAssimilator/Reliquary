@@ -1,0 +1,37 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_seeker_bullet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "reliquary:bullets/seeker_bullet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "reliquary:bullets/ender_bullet"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_seeker_bullet"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "reliquary:bullets/ender_bullet"
+    ]
+  }
+}

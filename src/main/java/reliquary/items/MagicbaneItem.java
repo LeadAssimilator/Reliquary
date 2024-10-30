@@ -1,37 +1,36 @@
 package reliquary.items;
 
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
-import net.minecraft.nbt.ListTag;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Rarity;
-import net.minecraft.world.item.SwordItem;
-import net.minecraft.world.item.Tiers;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.item.*;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
+import reliquary.Reliquary;
+import reliquary.data.ReliquaryEnchantmentProvider;
 import reliquary.util.TooltipBuilder;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class MagicbaneItem extends SwordItem implements ICreativeTabItemGenerator {
-	private static final AttributeModifier SPEED_ATTRIBUTE = new AttributeModifier(BASE_ATTACK_SPEED_UUID, "Weapon modifier", -2.4, AttributeModifier.Operation.ADDITION);
+	private static final ResourceLocation MAGICBANE_ENCHANTMENTS_BONUS_ID = Reliquary.getRL("magicbane_enchantments_bonus");
 
 	public MagicbaneItem() {
-		super(Tiers.GOLD, 3, -2.4f, new Properties().durability(16).setNoRepair().rarity(Rarity.EPIC));
+		super(Tiers.GOLD, new Properties().durability(16).setNoRepair().rarity(Rarity.EPIC)
+				.attributes(createAttributes(Tiers.GOLD, 4, -2.4f)));
+		NeoForge.EVENT_BUS.addListener(this::adjustDamageBasedOnEnchantments);
 	}
 
 	@Override
@@ -40,19 +39,13 @@ public class MagicbaneItem extends SwordItem implements ICreativeTabItemGenerato
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
 	public boolean isFoil(ItemStack stack) {
 		return true;
 	}
 
 	@Override
-	public void appendHoverText(ItemStack magicBane, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
-		TooltipBuilder.of(tooltip).itemTooltip(this);
+	public void appendHoverText(ItemStack magicBane, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+		TooltipBuilder.of(tooltip, context).itemTooltip(this);
 	}
 
 	/**
@@ -90,19 +83,25 @@ public class MagicbaneItem extends SwordItem implements ICreativeTabItemGenerato
 	}
 
 	@Override
-	public Multimap<Attribute, AttributeModifier> getAttributeModifiers(EquipmentSlot slot, ItemStack stack) {
-		if (slot != EquipmentSlot.MAINHAND) {
-			return ImmutableMultimap.of();
+	public int getEnchantmentLevel(ItemStack stack, Holder<Enchantment> enchantment) {
+		if (enchantment.is(ReliquaryEnchantmentProvider.SEVERING)) {
+			return super.getEnchantmentLevel(stack, enchantment) + 2;
 		}
 
-		ListTag enchants = stack.getEnchantmentTags();
-		int attackDamage = 4;
-		for (int enchant = 0; enchant < enchants.size(); enchant++) {
-			attackDamage += enchants.getCompound(enchant).getShort("lvl");
+		return super.getEnchantmentLevel(stack, enchantment);
+	}
+
+	private void adjustDamageBasedOnEnchantments(ItemAttributeModifierEvent event) {
+		ItemStack stack = event.getItemStack();
+		if (!(stack.getItem() instanceof MagicbaneItem)) {
+			return;
 		}
-		return ImmutableMultimap.of(
-				Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, "Weapon modifier", attackDamage, AttributeModifier.Operation.ADDITION),
-				Attributes.ATTACK_SPEED, SPEED_ATTRIBUTE
-		);
+
+		ItemEnchantments enchantments = stack.getTagEnchantments();
+		float attackDamage = 0;
+		for (Object2IntMap.Entry<Holder<Enchantment>> holderEntry : enchantments.entrySet()) {
+			attackDamage += holderEntry.getIntValue();
+		}
+		event.addModifier(Attributes.ATTACK_DAMAGE, new AttributeModifier(MAGICBANE_ENCHANTMENTS_BONUS_ID, attackDamage, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND);
 	}
 }

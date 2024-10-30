@@ -1,20 +1,13 @@
 package reliquary.items.util.fluid;
 
-import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import reliquary.init.ModFluids;
 import reliquary.init.ModItems;
 import reliquary.util.XpHelper;
 
-import javax.annotation.Nullable;
-
-public class FluidHandlerHeroMedallion implements IFluidHandlerItem, ICapabilityProvider {
+public class FluidHandlerHeroMedallion implements IFluidHandlerItem {
 	private static final int MAX_CAPACITY = Integer.MAX_VALUE;
 	private final ItemStack heroMedallion;
 
@@ -28,18 +21,13 @@ public class FluidHandlerHeroMedallion implements IFluidHandlerItem, ICapability
 	}
 
 	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
-		return ForgeCapabilities.FLUID_HANDLER_ITEM.orEmpty(cap, LazyOptional.of(() -> this));
-	}
-
-	@Override
 	public int getTanks() {
 		return 1;
 	}
 
 	@Override
 	public FluidStack getFluidInTank(int tank) {
-		return new FluidStack(ModFluids.XP_JUICE_STILL.get(), XpHelper.experienceToLiquid(getMedallionXp()));
+		return new FluidStack(ModFluids.XP_STILL.get(), XpHelper.experienceToLiquid(getMedallionXp()));
 	}
 
 	@Override
@@ -95,6 +83,6 @@ public class FluidHandlerHeroMedallion implements IFluidHandlerItem, ICapability
 
 	@Override
 	public FluidStack drain(int maxDrain, FluidAction action) {
-		return drain(new FluidStack(ModFluids.XP_JUICE_STILL.get(), maxDrain), action);
+		return drain(new FluidStack(ModFluids.XP_STILL.get(), maxDrain), action);
 	}
 }

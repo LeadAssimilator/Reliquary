@@ -1,0 +1,37 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_barrel_assembly": {
+      "conditions": {
+        "items": [
+          {
+            "items": "reliquary:barrel_assembly"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "reliquary:handgun"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_barrel_assembly"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "reliquary:handgun"
+    ]
+  }
+}

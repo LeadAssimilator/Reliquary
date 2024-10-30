@@ -1,7 +1,7 @@
 package reliquary.blocks.tile;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -10,18 +10,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.wrapper.InvWrapper;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.wrapper.InvWrapper;
 import reliquary.init.ModBlocks;
 import reliquary.util.InventoryHelper;
-
-import javax.annotation.Nullable;
+import reliquary.util.WorldHelper;
 
 public class PassivePedestalBlockEntity extends BlockEntityBase implements Container {
 	protected ItemStack item;
+
 	private final IItemHandler inventoryWrapper = new InvWrapper(this);
 
 	public ItemStack getItem() {
@@ -37,6 +34,10 @@ public class PassivePedestalBlockEntity extends BlockEntityBase implements Conta
 		item = ItemStack.EMPTY;
 	}
 
+	public IItemHandler getItemHandler() {
+		return inventoryWrapper;
+	}
+
 	public void dropPedestalInventory(Level level) {
 		if (!item.isEmpty()) {
 			InventoryHelper.spawnItemStack(level, worldPosition, item);
@@ -49,6 +50,7 @@ public class PassivePedestalBlockEntity extends BlockEntityBase implements Conta
 				setChanged();
 				ItemEntity itemEntity = new ItemEntity(level, worldPosition.getX() + 0.5D, worldPosition.getY() + 1D, worldPosition.getZ() + 0.5D, item);
 				level.addFreshEntity(itemEntity);
+				WorldHelper.notifyBlockUpdate(this);
 			}
 			item = ItemStack.EMPTY;
 		}
@@ -107,17 +109,17 @@ public class PassivePedestalBlockEntity extends BlockEntityBase implements Conta
 	}
 
 	@Override
-	public void load(CompoundTag nbt) {
-		super.load(nbt);
-		item = nbt.contains("item") ? ItemStack.of(nbt.getCompound("item")) : ItemStack.EMPTY;
+	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+		super.loadAdditional(tag, registries);
+		item = tag.contains("item") ? ItemStack.parse(registries, tag.getCompound("item")).orElse(ItemStack.EMPTY) : ItemStack.EMPTY;
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag compound) {
-		super.saveAdditional(compound);
+	public void saveAdditional(CompoundTag compound, HolderLookup.Provider registries) {
+		super.saveAdditional(compound, registries);
 
 		if (!item.isEmpty()) {
-			compound.put("item", item.save(new CompoundTag()));
+			compound.put("item", item.save(registries));
 		}
 	}
 
@@ -159,14 +161,5 @@ public class PassivePedestalBlockEntity extends BlockEntityBase implements Conta
 	@Override
 	public boolean isEmpty() {
 		return item.isEmpty();
-	}
-
-
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
-		if (cap == ForgeCapabilities.ITEM_HANDLER) {
-			return ForgeCapabilities.ITEM_HANDLER.orEmpty(cap, LazyOptional.of(() -> inventoryWrapper));
-		}
-		return super.getCapability(cap, side);
 	}
 }

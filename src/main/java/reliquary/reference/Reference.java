@@ -1,13 +1,8 @@
 package reliquary.reference;
 
+import reliquary.Reliquary;
+
 public class Reference {
-	// class for all the mod related constants
-	public static final String VERSION = "@MOD_VERSION@";
-
-	public static final String MOD_ID = "reliquary";
-	public static final String DOMAIN = MOD_ID.toLowerCase() + ":";
-	public static final String MOD_NAME = "Reliquary";
-
 	public static final String ART_PATH_ENTITIES = "textures/entities/";
 
 	//minecraft under-the-hood potion names
@@ -36,5 +31,6 @@ public class Reference {
 	public static final String BLIND = "blindness";
 
 	//reliquary potion names
-	public static final String CURE = MOD_ID + ":cure";
+	public static final String CURE = Reliquary.MOD_ID + ":cure";
+	public static final String FLIGHT = Reliquary.MOD_ID + ":flight";
 }

@@ -1,5 +1,8 @@
 package reliquary.items;
 
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -10,29 +13,19 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentCategory;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.network.NetworkHooks;
+import org.jetbrains.annotations.Nullable;
 import reliquary.common.gui.AlkahestTomeMenu;
 import reliquary.crafting.AlkahestryChargingRecipe;
 import reliquary.crafting.AlkahestryRecipeRegistry;
+import reliquary.init.ModDataComponents;
 import reliquary.init.ModSounds;
-import reliquary.reference.Settings;
-import reliquary.util.NBTHelper;
+import reliquary.reference.Config;
 import reliquary.util.TooltipBuilder;
-
-import javax.annotation.Nullable;
 
 public class AlkahestryTomeItem extends ToggleableItem {
 	public AlkahestryTomeItem() {
-		super(new Properties().setNoRepair().rarity(Rarity.EPIC).stacksTo(1), Settings.COMMON.disable.disableAlkahestry);
-	}
-
-	@Override
-	public boolean canBeDepleted() {
-		return true;
+		super(new Properties().setNoRepair().rarity(Rarity.EPIC).stacksTo(1).durability(10).component(DataComponents.REPAIR_COST, Integer.MAX_VALUE), Config.COMMON.disable.disableAlkahestry);
 	}
 
 	@Override
@@ -46,45 +39,45 @@ public class AlkahestryTomeItem extends ToggleableItem {
 	}
 
 	@Override
-	public boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment) {
-		return enchantment.category != EnchantmentCategory.BREAKABLE && super.canApplyAtEnchantingTable(stack, enchantment);
-	}
-
-	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack stack = player.getItemInHand(hand);
-		ItemStack newStack = super.use(world, player, hand).getObject();
+		ItemStack newStack = super.use(level, player, hand).getObject();
 		if (player.isShiftKeyDown()) {
 			return new InteractionResultHolder<>(InteractionResult.SUCCESS, newStack);
 		}
 
 		player.playSound(ModSounds.BOOK.get(), 1.0f, 1.0f);
-		if (!world.isClientSide && player instanceof ServerPlayer serverPlayer) {
-			NetworkHooks.openScreen(serverPlayer, new SimpleMenuProvider((w, p, pl) -> new AlkahestTomeMenu(w), stack.getHoverName()));
+		if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
+			serverPlayer.openMenu(new SimpleMenuProvider((w, p, pl) -> new AlkahestTomeMenu(w), stack.getHoverName()));
 		}
 		return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
 	}
 
 	@Override
-	public void inventoryTick(ItemStack tome, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		if (world.isClientSide || world.getGameTime() % 10 != 0 || !isEnabled(tome) || getCharge(tome) == getChargeLimit()) {
-			return;
-		}
+	public boolean isEnchantable(ItemStack stack) {
+		return false;
+	}
 
-		if (!(entity instanceof Player player)) {
+	@Override
+	public boolean supportsEnchantment(ItemStack stack, Holder<Enchantment> enchantment) {
+		return false;
+	}
+
+	@Override
+	public void inventoryTick(ItemStack tome, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % 10 != 0 || !isEnabled(tome) || getCharge(tome) == getChargeLimit()) {
 			return;
 		}
 
 		for (AlkahestryChargingRecipe recipe : AlkahestryRecipeRegistry.getChargingRecipes()) {
 			consumeAndCharge(player, getChargeLimit() - getCharge(tome), recipe.getChargeToAdd(),
-					ist -> recipe.getChargingIngredient().test(ist), 16, chargeToAdd -> addCharge(tome, chargeToAdd));
+					stack -> recipe.getChargingIngredient().test(stack), 16, chargeToAdd -> addCharge(tome, chargeToAdd));
 		}
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack tome, @Nullable Level level, TooltipBuilder tooltipBuilder) {
-		if (level == null) {
+	protected void addMoreInformation(ItemStack tome, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
+		if (registries == null) {
 			return;
 		}
 
@@ -92,7 +85,7 @@ public class AlkahestryTomeItem extends ToggleableItem {
 		tooltipBuilder.description(this, ".tooltip3");
 
 		if (isEnabled(tome)) {
-			tooltipBuilder.absorbActive(AlkahestryRecipeRegistry.getDrainRecipe().map(r -> r.getResultItem(level.registryAccess()).getHoverName().getString()).orElse(""));
+			tooltipBuilder.absorbActive(AlkahestryRecipeRegistry.getDrainRecipe().map(r -> r.getResultItem(registries).getHoverName().getString()).orElse(""));
 		} else {
 			tooltipBuilder.absorb();
 		}
@@ -104,16 +97,16 @@ public class AlkahestryTomeItem extends ToggleableItem {
 	}
 
 	public static int getChargeLimit() {
-		return Settings.COMMON.items.alkahestryTome.chargeLimit.get();
+		return Config.getOrDefault(Config.COMMON.items.alkahestryTome.chargeLimit, Config.COMMON_SPEC);
 	}
 
 	public static ItemStack setCharge(ItemStack tome, int charge) {
-		NBTHelper.putInt("charge", tome, charge);
+		tome.set(ModDataComponents.CHARGE, charge);
 		return tome;
 	}
 
 	public static int getCharge(ItemStack tome) {
-		return NBTHelper.getInt("charge", tome);
+		return tome.getOrDefault(ModDataComponents.CHARGE, 0);
 	}
 
 	public static void addCharge(ItemStack tome, int chageToAdd) {

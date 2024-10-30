@@ -3,26 +3,25 @@ package reliquary.compat.jade.provider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidType;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidType;
+import reliquary.Reliquary;
 import reliquary.blocks.ApothecaryCauldronBlock;
 import reliquary.blocks.tile.ApothecaryCauldronBlockEntity;
-import reliquary.reference.Reference;
 import reliquary.util.TooltipBuilder;
+import reliquary.util.potions.PotionHelper;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.config.IPluginConfig;
 import snownee.jade.api.fluid.JadeFluidObject;
-import snownee.jade.api.ui.BoxStyle;
-import snownee.jade.api.ui.IDisplayHelper;
-import snownee.jade.api.ui.IElement;
-import snownee.jade.api.ui.IElementHelper;
-import snownee.jade.api.ui.IProgressStyle;
+import snownee.jade.api.ui.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DataProviderCauldron extends CachedBodyDataProvider {
 	@Override
@@ -34,7 +33,7 @@ public class DataProviderCauldron extends CachedBodyDataProvider {
 			return List.of();
 		}
 
-		if (cauldron.getEffects().isEmpty()) {
+		if (!cauldron.getPotionContents().hasEffects()) {
 			return List.of();
 		}
 
@@ -79,16 +78,19 @@ public class DataProviderCauldron extends CachedBodyDataProvider {
 		lines.add(createTank(helper, fluidPlaceHolder, FluidType.BUCKET_VOLUME, potionType));
 
 		List<Component> components = new ArrayList<>();
-		TooltipBuilder.of(components).potionEffects(cauldron.getEffects());
-		lines.add(components.stream().map(helper::text).toList());
+		TooltipBuilder.of(components, Item.TooltipContext.of(cauldron.getLevel())).potionEffects(PotionHelper.augmentPotionContents(cauldron.getPotionContents(), cauldron.getRedstoneCount(), cauldron.getGlowstoneCount()));
+
+		lines.add(components.stream().map(helper::text).collect(Collectors.toList()));
 		return lines;
 	}
 
 	public static List<IElement> createTank(IElementHelper helper, FluidStack fluidStack, int capacity, Component displayName) {
 		if (displayName == FormattedText.EMPTY) {
-			displayName = fluidStack.getDisplayName();
+			displayName = fluidStack.getHoverName();
 		}
-		if (capacity <= 0) {return List.of();}
+		if (capacity <= 0) {
+			return List.of();
+		}
 		Component text;
 		if (fluidStack.isEmpty()) {
 			text = Component.translatable("jade.fluid.empty");
@@ -96,15 +98,15 @@ public class DataProviderCauldron extends CachedBodyDataProvider {
 			String amountText = IDisplayHelper.get().humanReadableNumber(fluidStack.getAmount(), "B", true);
 			text = Component.translatable("jade.fluid", displayName, amountText);
 		}
-		IProgressStyle progressStyle = helper.progressStyle();
+		ProgressStyle progressStyle = helper.progressStyle();
 		progressStyle.overlay(helper.fluid(JadeFluidObject.of(fluidStack.getFluid())));
 
-		IElement tank = helper.progress((float) fluidStack.getAmount() / capacity, text, progressStyle, BoxStyle.DEFAULT, false);
+		IElement tank = helper.progress((float) fluidStack.getAmount() / capacity, text, progressStyle, BoxStyle.getNestedBox(), false);
 		return List.of(tank);
 	}
 
 	@Override
 	public ResourceLocation getUid() {
-		return new ResourceLocation(Reference.MOD_ID, "cauldron");
+		return Reliquary.getRL("cauldron");
 	}
 }

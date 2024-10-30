@@ -1,21 +1,18 @@
 package reliquary.items;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraft.world.item.alchemy.PotionContents;
 import reliquary.init.ModItems;
 import reliquary.items.util.IPotionItem;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.TooltipBuilder;
 import reliquary.util.potions.PotionEssence;
+import reliquary.util.potions.PotionHelper;
 import reliquary.util.potions.PotionMap;
-import reliquary.util.potions.XRPotionHelper;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -28,7 +25,7 @@ public class PotionItemBase extends ItemBase implements IPotionItem {
 	// the base potion types.
 	@Override
 	public boolean hasCraftingRemainingItem(ItemStack stack) {
-		return !XRPotionHelper.getPotionEffectsFromStack(stack).isEmpty();
+		return PotionHelper.hasPotionContents(stack);
 	}
 
 	@Override
@@ -37,27 +34,26 @@ public class PotionItemBase extends ItemBase implements IPotionItem {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void appendHoverText(ItemStack potion, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
-		TooltipBuilder.of(tooltip).potionEffects(potion);
+	public void appendHoverText(ItemStack potion, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+		TooltipBuilder.of(tooltip, context).potionEffects(potion);
 	}
 
 	@Override
 	public void addCreativeTabItems(Consumer<ItemStack> itemConsumer) {
-		if (Boolean.TRUE.equals(Settings.COMMON.disable.disablePotions.get())) {
+		if (Boolean.TRUE.equals(Config.COMMON.disable.disablePotions.get())) {
 			return;
 		}
 
 		for (PotionEssence essence : PotionMap.uniquePotions) {
 			ItemStack potion = new ItemStack(this, 1);
-			XRPotionHelper.addPotionEffectsToStack(potion, essence.getEffects());
+			PotionHelper.addPotionContentsToStack(potion, essence.getPotionContents());
 
 			itemConsumer.accept(potion);
 		}
 	}
 
 	@Override
-	public List<MobEffectInstance> getEffects(ItemStack stack) {
-		return XRPotionHelper.getPotionEffectsFromStack(stack);
+	public PotionContents getPotionContents(ItemStack stack) {
+		return stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
 	}
 }

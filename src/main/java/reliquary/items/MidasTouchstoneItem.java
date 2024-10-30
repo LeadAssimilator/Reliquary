@@ -1,24 +1,17 @@
 package reliquary.items;
 
 import com.google.common.collect.ImmutableMap;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ArmorMaterial;
-import net.minecraft.world.item.ArmorMaterials;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.Rarity;
-import net.minecraft.world.item.Tier;
-import net.minecraft.world.item.TieredItem;
-import net.minecraft.world.item.Tiers;
+import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import reliquary.reference.Settings;
+import net.neoforged.neoforge.items.IItemHandler;
+import reliquary.init.ModDataComponents;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
-import reliquary.util.NBTHelper;
 import reliquary.util.RegistryHelper;
 import reliquary.util.TooltipBuilder;
 
@@ -34,20 +27,18 @@ public class MidasTouchstoneItem extends ToggleableItem {
 				return tier.equals(Tiers.GOLD) || tier.equals(Tiers.NETHERITE);
 			})
 			.put(ArmorItem.class, item -> {
-				ArmorMaterial material = ((ArmorItem) item).getMaterial();
+				Holder<ArmorMaterial> material = ((ArmorItem) item).getMaterial();
 				return material.equals(ArmorMaterials.GOLD) || material.equals(ArmorMaterials.NETHERITE);
 			})
 			.build();
-	private static final String GLOWSTONE_TAG = "glowstone";
 
 	public MidasTouchstoneItem() {
-		super(new Properties().stacksTo(1));
+		super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack touchstone, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		tooltipBuilder.charge(this, ".tooltip2", NBTHelper.getInt(GLOWSTONE_TAG, touchstone));
+	protected void addMoreInformation(ItemStack touchstone, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
+		tooltipBuilder.charge(this, ".tooltip2", getGlowstoneCharge(touchstone));
 		if (isEnabled(touchstone)) {
 			tooltipBuilder.absorbActive(Items.GLOWSTONE_DUST.getName(new ItemStack(Items.GLOWSTONE_DUST)).getString());
 		} else {
@@ -61,40 +52,45 @@ public class MidasTouchstoneItem extends ToggleableItem {
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
-	}
-
-	@Override
-	public void inventoryTick(ItemStack stack, Level world, Entity e, int i, boolean f) {
-		if (world.isClientSide || world.getGameTime() % 10 != 0 || !(e instanceof Player player)) {
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int i, boolean f) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % 10 != 0) {
 			return;
 		}
 
 		if (isEnabled(stack)) {
-			int glowstoneCharge = NBTHelper.getInt(GLOWSTONE_TAG, stack);
+			int glowstoneCharge = getGlowstoneCharge(stack);
 			consumeAndCharge(player, getGlowstoneLimit() - glowstoneCharge, getGlowStoneWorth(), Items.GLOWSTONE_DUST, 16,
-					chargeToAdd -> NBTHelper.putInt(GLOWSTONE_TAG, stack, glowstoneCharge + chargeToAdd));
+					chargeToAdd -> addGlowstoneCharge(stack, chargeToAdd));
 		}
 
 		doRepairAndDamageTouchstone(stack, player);
 	}
 
+	public static int getGlowstoneCharge(ItemStack stack) {
+		return stack.getOrDefault(ModDataComponents.GLOWSTONE, 0);
+	}
+
+	private void addGlowstoneCharge(ItemStack stack, int chargeToAdd) {
+		stack.set(ModDataComponents.GLOWSTONE, Math.max(getGlowstoneCharge(stack) + chargeToAdd, 0));
+	}
+
 	private void doRepairAndDamageTouchstone(ItemStack touchstone, Player player) {
-		List<String> goldItems = Settings.COMMON.items.midasTouchstone.goldItems.get();
+		List<String> goldItems = Config.COMMON.items.midasTouchstone.goldItems.get();
 
-		InventoryHelper.getItemHandlerFrom(player, null).ifPresent(itemHandler -> {
-			for (int slot = 0; slot < itemHandler.getSlots(); slot++) {
-				ItemStack stack = itemHandler.getStackInSlot(slot);
-				Item item = stack.getItem();
+		IItemHandler playerInventory = InventoryHelper.getItemHandlerFrom(player);
+		if (playerInventory == null) {
+			return;
+		}
+		for (int slot = 0; slot < playerInventory.getSlots(); slot++) {
+			ItemStack stack = playerInventory.getStackInSlot(slot);
+			Item item = stack.getItem();
 
-				if (stack.getDamageValue() <= 0 || !stack.getItem().canBeDepleted()) {
-					continue;
-				}
-
-				tryRepairingItem(touchstone, player, goldItems, stack, item);
+			if (stack.getDamageValue() <= 0 || !stack.has(DataComponents.DAMAGE)) {
+				continue;
 			}
-		});
+
+			tryRepairingItem(touchstone, player, goldItems, stack, item);
+		}
 	}
 
 	private void tryRepairingItem(ItemStack touchstone, Player player, List<String> goldItems, ItemStack stack, Item item) {
@@ -112,9 +108,9 @@ public class MidasTouchstoneItem extends ToggleableItem {
 	}
 
 	private boolean reduceTouchStoneCharge(ItemStack stack, Player player) {
-		if (NBTHelper.getInt(GLOWSTONE_TAG, stack) - getGlowStoneCost() >= 0 || player.isCreative()) {
+		if (getGlowstoneCharge(stack) - getGlowStoneCost() >= 0 || player.isCreative()) {
 			if (!player.isCreative()) {
-				NBTHelper.putInt(GLOWSTONE_TAG, stack, NBTHelper.getInt(GLOWSTONE_TAG, stack) - getGlowStoneCost());
+				addGlowstoneCharge(stack, -getGlowStoneCost());
 			}
 			return true;
 		}
@@ -122,15 +118,15 @@ public class MidasTouchstoneItem extends ToggleableItem {
 	}
 
 	private int getGlowStoneCost() {
-		return Settings.COMMON.items.midasTouchstone.glowstoneCost.get();
+		return Config.COMMON.items.midasTouchstone.glowstoneCost.get();
 	}
 
 	private int getGlowStoneWorth() {
-		return Settings.COMMON.items.midasTouchstone.glowstoneWorth.get();
+		return Config.COMMON.items.midasTouchstone.glowstoneWorth.get();
 	}
 
 	private int getGlowstoneLimit() {
-		return Settings.COMMON.items.midasTouchstone.glowstoneLimit.get();
+		return Config.COMMON.items.midasTouchstone.glowstoneLimit.get();
 	}
 
 	private Optional<IRepairableItem> getRepairableItem(Class<? extends Item> item) {

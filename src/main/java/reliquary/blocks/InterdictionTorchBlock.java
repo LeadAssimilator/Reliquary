@@ -2,9 +2,12 @@ package reliquary.blocks;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.FastColor;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -18,12 +21,9 @@ import net.minecraft.world.level.block.TorchBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.registries.ForgeRegistries;
-import reliquary.entities.shot.ShotEntityBase;
+import reliquary.entities.shot.ShotBase;
 import reliquary.items.ICreativeTabItemGenerator;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -32,7 +32,7 @@ public class InterdictionTorchBlock extends TorchBlock implements ICreativeTabIt
 	protected static final int TICK_RATE = 1;
 
 	public InterdictionTorchBlock() {
-		super(Properties.of().strength(0).lightLevel(value -> 15).randomTicks().sound(SoundType.WOOD).noCollission(), ParticleTypes.FLAME);
+		super(ParticleTypes.FLAME, Properties.of().strength(0).lightLevel(value -> 15).randomTicks().sound(SoundType.WOOD).noCollission());
 	}
 
 	@Override
@@ -45,26 +45,24 @@ public class InterdictionTorchBlock extends TorchBlock implements ICreativeTabIt
 		return super.getName().withStyle(ChatFormatting.YELLOW);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
-	public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean isMoving) {
-		world.scheduleTick(pos, this, TICK_RATE);
-		super.onPlace(state, world, pos, oldState, isMoving);
+	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+		level.scheduleTick(pos, this, TICK_RATE);
+		super.onPlace(state, level, pos, oldState, isMoving);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
-	public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource random) {
-		super.tick(state, world, pos, random);
-		world.scheduleTick(pos, this, TICK_RATE);
-		if (world.isClientSide) {
+	public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+		super.tick(state, level, pos, random);
+		level.scheduleTick(pos, this, TICK_RATE);
+		if (level.isClientSide) {
 			return;
 		}
-		int radius = Settings.COMMON.blocks.interdictionTorch.pushRadius.get();
+		int radius = Config.COMMON.blocks.interdictionTorch.pushRadius.get();
 
-		List<Entity> entities = world.getEntitiesOfClass(Entity.class, new AABB(pos).inflate(radius), e -> (e instanceof Mob || e instanceof Projectile));
+		List<Entity> entities = level.getEntitiesOfClass(Entity.class, new AABB(pos).inflate(radius), e -> (e instanceof Mob || e instanceof Projectile));
 		for (Entity entity : entities) {
-			if (entity instanceof Player || entity instanceof ShotEntityBase || entity instanceof FishingHook || isBlacklistedEntity(entity)) {
+			if (entity instanceof Player || entity instanceof ShotBase || entity instanceof FishingHook || isBlacklistedEntity(entity)) {
 				continue;
 			}
 			double distance = Math.sqrt(entity.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()));
@@ -103,30 +101,24 @@ public class InterdictionTorchBlock extends TorchBlock implements ICreativeTabIt
 	}
 
 	private boolean isBlacklistedEntity(Entity entity) {
-		if (ForgeRegistries.ENTITY_TYPES.getKey(entity.getType()) == null) {
-			return false;
-		}
-
-		//noinspection ConstantConditions
-		String entityName = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType()).toString();
-		return isBlacklistedLivingEntity(entity, entityName) || Settings.COMMON.blocks.interdictionTorch.canPushProjectiles.get() && isBlacklistedProjectile(entity, entityName);
+		String entityName = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
+		return isBlacklistedLivingEntity(entity, entityName) || Config.COMMON.blocks.interdictionTorch.canPushProjectiles.get() && isBlacklistedProjectile(entity, entityName);
 	}
 
 	private boolean isBlacklistedProjectile(Entity entity, String entityName) {
-		return entity instanceof Projectile && Settings.COMMON.blocks.interdictionTorch.pushableProjectilesBlacklist.get().contains(entityName);
+		return entity instanceof Projectile && Config.COMMON.blocks.interdictionTorch.pushableProjectilesBlacklist.get().contains(entityName);
 	}
 
 	private boolean isBlacklistedLivingEntity(Entity entity, String entityName) {
-		return entity instanceof Mob && Settings.COMMON.blocks.interdictionTorch.pushableEntitiesBlacklist.get().contains(entityName);
+		return entity instanceof Mob && Config.COMMON.blocks.interdictionTorch.pushableEntitiesBlacklist.get().contains(entityName);
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void animateTick(BlockState state, Level world, BlockPos pos, RandomSource random) {
+	public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
 		double xOffset = pos.getX() + 0.5F;
 		double yOffset = pos.getY() + 0.7F;
 		double zOffset = pos.getZ() + 0.5F;
-		world.addParticle(ParticleTypes.ENTITY_EFFECT, xOffset, yOffset, zOffset, 0.0D, 0.0D, 0.0D);
-		world.addParticle(ParticleTypes.FLAME, xOffset, yOffset, zOffset, 0.0D, 0.0D, 0.0D);
+		level.addParticle(ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, FastColor.ARGB32.opaque( 0)), xOffset, yOffset, zOffset, 0.0D, 0.0D, 0.0D);
+		level.addParticle(ParticleTypes.FLAME, xOffset, yOffset, zOffset, 0.0D, 0.0D, 0.0D);
 	}
 }

@@ -1,15 +1,15 @@
 package reliquary.data;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
 import reliquary.init.ModItems;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 
 public class ChestLootEnabledCondition implements LootItemCondition {
+	private static final ChestLootEnabledCondition INSTANCE = new ChestLootEnabledCondition();
+	public static final MapCodec<ChestLootEnabledCondition> CODEC = MapCodec.unit(INSTANCE);
 
 	private ChestLootEnabledCondition() {
 	}
@@ -21,7 +21,7 @@ public class ChestLootEnabledCondition implements LootItemCondition {
 
 	@Override
 	public boolean test(LootContext lootContext) {
-		return Boolean.TRUE.equals(Settings.COMMON.chestLootEnabled.get());
+		return Boolean.TRUE.equals(Config.COMMON.chestLootEnabled.get());
 	}
 
 	public static Builder builder() {
@@ -31,18 +31,6 @@ public class ChestLootEnabledCondition implements LootItemCondition {
 	public static class Builder implements LootItemCondition.Builder {
 		@Override
 		public LootItemCondition build() {
-			return new ChestLootEnabledCondition();
-		}
-	}
-
-	public static class Serializer implements net.minecraft.world.level.storage.loot.Serializer<ChestLootEnabledCondition> {
-		@Override
-		public void serialize(JsonObject object, ChestLootEnabledCondition instance, JsonSerializationContext ctx) {
-			//nothing to serialize
-		}
-
-		@Override
-		public ChestLootEnabledCondition deserialize(JsonObject object, JsonDeserializationContext ctx) {
 			return new ChestLootEnabledCondition();
 		}
 	}

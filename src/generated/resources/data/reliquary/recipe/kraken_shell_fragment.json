@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:squid_beak"
+    },
+    {
+      "item": "reliquary:squid_beak"
+    },
+    {
+      "item": "reliquary:squid_beak"
+    },
+    {
+      "item": "reliquary:slime_pearl"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:kraken_shell_fragment"
+  }
+}

@@ -1,13 +1,14 @@
 package reliquary.blocks;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -27,7 +28,7 @@ import reliquary.blocks.tile.AlkahestryAltarBlockEntity;
 import reliquary.init.ModBlocks;
 import reliquary.items.AlkahestryTomeItem;
 import reliquary.items.ICreativeTabItemGenerator;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.BlockEntityHelper;
 
 import javax.annotation.Nullable;
@@ -52,7 +53,7 @@ public class AlkahestryAltarBlock extends Block implements EntityBlock, ICreativ
 	}
 
 	private static int getAltarActiveLightLevel() {
-		return Settings.COMMON.blocks.altar.outputLightLevelWhileActive.get();
+		return Config.COMMON.blocks.altar.outputLightLevelWhileActive.get();
 	}
 
 	@Override
@@ -81,40 +82,38 @@ public class AlkahestryAltarBlock extends Block implements EntityBlock, ICreativ
 		if (Boolean.FALSE.equals(state.getValue(ACTIVE)) || level.getDayTime() >= 12000 || !level.canSeeSkyFromBelowWater(pos.above()) || rand.nextInt(3) != 0) {
 			return;
 		}
-		level.addParticle(ParticleTypes.ENTITY_EFFECT, pos.getX() + 0.5D + rand.nextGaussian() / 8, pos.getY() + 1.1D, pos.getZ() + 0.5D + rand.nextGaussian() / 8, 0.9D, 0.9D, 0.0D);
+		level.addParticle(ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0.9F, 0.9F, 0.0F), pos.getX() + 0.5D + rand.nextGaussian() / 8, pos.getY() + 1.1D, pos.getZ() + 0.5D + rand.nextGaussian() / 8, 0D, 0D, 0D);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
-	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(hand);
+	protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult p_316140_) {
 		if (Boolean.TRUE.equals(state.getValue(ACTIVE))) {
-			return InteractionResult.CONSUME;
+			return ItemInteractionResult.CONSUME;
 		}
 		AlkahestryAltarBlockEntity altar = (AlkahestryAltarBlockEntity) level.getBlockEntity(pos);
 		if (altar == null || heldItem.isEmpty()) {
-			return InteractionResult.SUCCESS;
+			return ItemInteractionResult.SUCCESS;
 		}
 		if (heldItem.getItem() == Items.REDSTONE) {
 			int slot = getSlotWithRedstoneDust(player);
 			if (slot == -1) {
-				return InteractionResult.SUCCESS;
+				return ItemInteractionResult.SUCCESS;
 			}
 			playSoundAndSpawnParticles(level, pos, altar);
 			if (level.isClientSide) {
-				return InteractionResult.SUCCESS;
+				return ItemInteractionResult.SUCCESS;
 			}
 			player.getInventory().removeItem(slot, 1);
 			altar.addRedstone(level, pos);
 		} else if (heldItem.getItem() instanceof AlkahestryTomeItem && AlkahestryTomeItem.getCharge(heldItem) > 0) {
 			playSoundAndSpawnParticles(level, pos, altar);
 			if (level.isClientSide) {
-				return InteractionResult.SUCCESS;
+				return ItemInteractionResult.SUCCESS;
 			}
 			AlkahestryTomeItem.useCharge(heldItem, 1);
 			altar.addRedstone(level, pos);
 		}
-		return InteractionResult.CONSUME;
+		return ItemInteractionResult.CONSUME;
 	}
 
 	private void playSoundAndSpawnParticles(Level level, BlockPos pos, AlkahestryAltarBlockEntity altar) {

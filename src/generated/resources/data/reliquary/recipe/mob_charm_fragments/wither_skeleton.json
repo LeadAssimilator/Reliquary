@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "reliquary:withered_rib"
+    },
+    "S": {
+      "item": "minecraft:bone"
+    },
+    "T": {
+      "item": "minecraft:wither_skeleton_skull"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "STS",
+    "PPP"
+  ],
+  "result": {
+    "components": {
+      "reliquary:entity_name": "minecraft:wither_skeleton"
+    },
+    "count": 1,
+    "id": "reliquary:mob_charm_fragment"
+  }
+}

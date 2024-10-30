@@ -5,6 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -23,9 +24,10 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import reliquary.blocks.tile.ApothecaryMortarBlockEntity;
+import reliquary.init.ModBlocks;
 import reliquary.init.ModItems;
 import reliquary.items.ICreativeTabItemGenerator;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
 import reliquary.util.WorldHelper;
 
@@ -52,7 +54,7 @@ public class ApothecaryMortarBlock extends Block implements EntityBlock, ICreati
 
 	@Override
 	public void addCreativeTabItems(Consumer<ItemStack> itemConsumer) {
-		if (Boolean.TRUE.equals(Settings.COMMON.disable.disablePotions.get())) {
+		if (Boolean.TRUE.equals(Config.COMMON.disable.disablePotions.get())) {
 			return;
 		}
 		itemConsumer.accept(new ItemStack(this));
@@ -64,7 +66,7 @@ public class ApothecaryMortarBlock extends Block implements EntityBlock, ICreati
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return MORTAR_SHAPE;
 	}
 
@@ -75,48 +77,53 @@ public class ApothecaryMortarBlock extends Block implements EntityBlock, ICreati
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(hand);
-		BlockEntity tileEntity = level.getBlockEntity(pos);
-		if (!(tileEntity instanceof ApothecaryMortarBlockEntity mortar)) {
-			return InteractionResult.FAIL;
-		}
-
-		if (heldItem.isEmpty()) {
+	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+		return level.getBlockEntity(pos, ModBlocks.APOTHECARY_MORTAR_TILE_TYPE.get()).map(mortar -> {
 			if (player.isCrouching()) {
-				InventoryHelper.getItemHandlerFrom(mortar).ifPresent(itemHandler -> InventoryHelper.tryRemovingLastStack(itemHandler, level, mortar.getBlockPos()));
+				InventoryHelper.executeOnItemHandlerAt(level, pos, state, mortar, itemHandler -> InventoryHelper.tryRemovingLastStack(itemHandler, level, mortar.getBlockPos()));
 				return InteractionResult.SUCCESS;
 			}
-			boolean done = mortar.usePestle(level);
-			level.playSound(null, pos, soundType.getStepSound(), SoundSource.BLOCKS, (soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
-			player.swing(hand);
-			return done ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
-		}
 
-		//if we're in cooldown prevent player from insta inserting essence that they just got from mortar
-		if (mortar.isInCooldown(level) && heldItem.getItem() == ModItems.POTION_ESSENCE.get()) {
-			return InteractionResult.CONSUME;
-		}
-
-		ItemStack stackToAdd = heldItem.copy();
-		stackToAdd.setCount(1);
-
-		boolean putItemInSlot = InventoryHelper.getItemHandlerFrom(mortar).map(itemHandler -> {
-			if (InventoryHelper.insertIntoInventory(stackToAdd, itemHandler) == 1) {
-				heldItem.shrink(1);
-				return true;
+			if (mortar.usePestle(level)) {
+				level.playSound(null, pos, soundType.getStepSound(), SoundSource.BLOCKS, (soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
+				player.swing(InteractionHand.MAIN_HAND);
+				return InteractionResult.CONSUME;
 			}
-			return false;
-		}).orElse(false);
+			return InteractionResult.FAIL;
+		}).orElse(InteractionResult.FAIL);
+	}
 
-		if (!putItemInSlot) {
-			mortar.usePestle(level);
-			level.playSound(null, pos, soundType.getStepSound(), SoundSource.BLOCKS, (soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
-			return InteractionResult.CONSUME;
-		} else {
-			mortar.setChanged();
-		}
-		return InteractionResult.SUCCESS;
+	@Override
+	protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+		return level.getBlockEntity(pos, ModBlocks.APOTHECARY_MORTAR_TILE_TYPE.get()).map(mortar -> {
+			//if we're in cooldown prevent player from insta inserting essence that they just got from mortar
+			if (mortar.isInCooldown(level) && heldItem.getItem() == ModItems.POTION_ESSENCE.get()) {
+				return ItemInteractionResult.FAIL;
+			}
+
+			ItemStack stackToAdd = heldItem.copy();
+			stackToAdd.setCount(1);
+
+			boolean putItemInSlot = InventoryHelper.executeOnItemHandlerAt(level, pos, state, mortar, itemHandler -> {
+				if (InventoryHelper.insertIntoInventory(stackToAdd, itemHandler) == 1) {
+					heldItem.shrink(1);
+					return true;
+				}
+				return false;
+			}, false);
+
+			if (!putItemInSlot) {
+				if (mortar.usePestle(level)) {
+					level.playSound(null, pos, soundType.getStepSound(), SoundSource.BLOCKS, (soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
+					return ItemInteractionResult.CONSUME;
+				} else {
+					return ItemInteractionResult.FAIL;
+				}
+			} else {
+				mortar.setChanged();
+			}
+			return ItemInteractionResult.SUCCESS;
+		}).orElse(ItemInteractionResult.FAIL);
 	}
 
 	@Nullable

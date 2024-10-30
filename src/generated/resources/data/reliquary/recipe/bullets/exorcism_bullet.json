@@ -1,0 +1,42 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:bullets/neutral_bullet"
+    },
+    {
+      "item": "reliquary:zombie_heart"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "id": "reliquary:bullets/exorcism_bullet"
+  }
+}

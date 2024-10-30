@@ -1,17 +1,15 @@
 package reliquary.items;
 
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.Nullable;
 import reliquary.util.TooltipBuilder;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -46,14 +44,13 @@ public class ItemBase extends Item implements ICreativeTabItemGenerator {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void appendHoverText(ItemStack stack, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
-		TooltipBuilder tooltipBuilder = TooltipBuilder.of(tooltip).itemTooltip(this);
+	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+		TooltipBuilder tooltipBuilder = TooltipBuilder.of(tooltip, context).itemTooltip(this);
 
 		if (hasMoreInformation(stack)) {
 			tooltipBuilder.showMoreInfo();
 			if (Screen.hasShiftDown()) {
-				addMoreInformation(stack, world, tooltipBuilder);
+				addMoreInformation(stack, context.registries(), tooltipBuilder);
 			}
 		}
 	}
@@ -63,8 +60,7 @@ public class ItemBase extends Item implements ICreativeTabItemGenerator {
 		return false;
 	}
 
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack stack, @Nullable Level world, TooltipBuilder tooltipBuilder) {
+	protected void addMoreInformation(ItemStack stack, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
 		//overriden in child classes
 	}
 

@@ -5,7 +5,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import reliquary.api.IPedestal;
 import reliquary.api.IPedestalRedstoneItemWrapper;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.WorldHelper;
 
 import java.util.List;
@@ -31,7 +31,7 @@ public class PedestalRedstoneWrapper implements IPedestalRedstoneItemWrapper {
 
 	@Override
 	public void updateRedstone(ItemStack stack, Level level, IPedestal pedestal) {
-		List<BlockPos> pedestalsInRange = pedestal.getPedestalsInRange(level, Settings.COMMON.blocks.pedestal.redstoneWrapperRange.get());
+		List<BlockPos> pedestalsInRange = pedestal.getPedestalsInRange(level, Config.COMMON.blocks.pedestal.redstoneWrapperRange.get());
 		BlockPos thisPos = pedestal.getBlockPosition();
 
 		boolean buttonEnabled = pedestal.switchedOn();
@@ -53,7 +53,7 @@ public class PedestalRedstoneWrapper implements IPedestalRedstoneItemWrapper {
 
 	@Override
 	public void onRemoved(ItemStack stack, Level level, IPedestal pedestal) {
-		List<BlockPos> pedestalsInRange = pedestal.getPedestalsInRange(level, Settings.COMMON.blocks.pedestal.redstoneWrapperRange.get());
+		List<BlockPos> pedestalsInRange = pedestal.getPedestalsInRange(level, Config.COMMON.blocks.pedestal.redstoneWrapperRange.get());
 		BlockPos thisPos = pedestal.getBlockPosition();
 
 		for (BlockPos pos : pedestalsInRange) {

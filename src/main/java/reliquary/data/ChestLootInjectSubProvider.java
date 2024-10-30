@@ -1,6 +1,9 @@
 package reliquary.data;
 
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.loot.LootTableSubProvider;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -11,9 +14,9 @@ import net.minecraft.world.level.storage.loot.entries.LootItem;
 import net.minecraft.world.level.storage.loot.entries.LootPoolEntryContainer;
 import net.minecraft.world.level.storage.loot.functions.SetItemCountFunction;
 import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
+import reliquary.Reliquary;
 import reliquary.init.ModBlocks;
 import reliquary.init.ModItems;
-import reliquary.reference.Reference;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,27 +24,33 @@ import java.util.function.BiConsumer;
 
 public class ChestLootInjectSubProvider implements LootTableSubProvider {
 
-	protected static final Map<ResourceLocation, ResourceLocation> LOOT_INJECTS = new HashMap<>();
-
-	private static ResourceLocation registerLootInject(ResourceLocation vanillaLootTable) {
-		return LOOT_INJECTS.computeIfAbsent(vanillaLootTable, k -> new ResourceLocation(Reference.MOD_ID, INJECT_FOLDER + vanillaLootTable.getPath()));
-	}
+	protected static final Map<ResourceKey<LootTable>, ResourceKey<LootTable>> LOOT_INJECTS = new HashMap<>();
 
 	private static final String INJECT_FOLDER = "inject/";
-	public static final ResourceLocation ABANDONED_MINESHAFT = registerLootInject(BuiltInLootTables.ABANDONED_MINESHAFT);
-	public static final ResourceLocation DESERT_PYRAMID = registerLootInject(BuiltInLootTables.DESERT_PYRAMID);
-	public static final ResourceLocation END_CITY_TREASURE = registerLootInject(BuiltInLootTables.END_CITY_TREASURE);
-	public static final ResourceLocation IGLOO_CHEST = registerLootInject(BuiltInLootTables.IGLOO_CHEST);
-	public static final ResourceLocation JUNGLE_TEMPLE = registerLootInject(BuiltInLootTables.JUNGLE_TEMPLE);
-	public static final ResourceLocation NETHER_BRIDGE = registerLootInject(BuiltInLootTables.NETHER_BRIDGE);
-	public static final ResourceLocation SIMPLE_DUNGEON = registerLootInject(BuiltInLootTables.SIMPLE_DUNGEON);
-	public static final ResourceLocation STRONGHOLD_CORRIDOR = registerLootInject(BuiltInLootTables.STRONGHOLD_CORRIDOR);
-	public static final ResourceLocation STRONGHOLD_CROSSING = registerLootInject(BuiltInLootTables.STRONGHOLD_CROSSING);
-	public static final ResourceLocation STRONGHOLD_LIBRARY = registerLootInject(BuiltInLootTables.STRONGHOLD_LIBRARY);
-	public static final ResourceLocation VILLAGE_WEAPONSMITH = registerLootInject(BuiltInLootTables.VILLAGE_WEAPONSMITH);
+	public static final ResourceKey<LootTable> ABANDONED_MINESHAFT = createInjectLootTableRegistryKey(BuiltInLootTables.ABANDONED_MINESHAFT);
+	public static final ResourceKey<LootTable> DESERT_PYRAMID = createInjectLootTableRegistryKey(BuiltInLootTables.DESERT_PYRAMID);
+	public static final ResourceKey<LootTable> END_CITY_TREASURE = createInjectLootTableRegistryKey(BuiltInLootTables.END_CITY_TREASURE);
+	public static final ResourceKey<LootTable> IGLOO_CHEST = createInjectLootTableRegistryKey(BuiltInLootTables.IGLOO_CHEST);
+	public static final ResourceKey<LootTable> JUNGLE_TEMPLE = createInjectLootTableRegistryKey(BuiltInLootTables.JUNGLE_TEMPLE);
+	public static final ResourceKey<LootTable> NETHER_BRIDGE = createInjectLootTableRegistryKey(BuiltInLootTables.NETHER_BRIDGE);
+	public static final ResourceKey<LootTable> SIMPLE_DUNGEON = createInjectLootTableRegistryKey(BuiltInLootTables.SIMPLE_DUNGEON);
+	public static final ResourceKey<LootTable> STRONGHOLD_CORRIDOR = createInjectLootTableRegistryKey(BuiltInLootTables.STRONGHOLD_CORRIDOR);
+	public static final ResourceKey<LootTable> STRONGHOLD_CROSSING = createInjectLootTableRegistryKey(BuiltInLootTables.STRONGHOLD_CROSSING);
+	public static final ResourceKey<LootTable> STRONGHOLD_LIBRARY = createInjectLootTableRegistryKey(BuiltInLootTables.STRONGHOLD_LIBRARY);
+	public static final ResourceKey<LootTable> VILLAGE_WEAPONSMITH = createInjectLootTableRegistryKey(BuiltInLootTables.VILLAGE_WEAPONSMITH);
+
+	private static ResourceKey<LootTable> createInjectLootTableRegistryKey(ResourceKey<LootTable> vanillaLootTable) {
+		ResourceLocation location = Reliquary.getRL(INJECT_FOLDER + vanillaLootTable.location().getPath());
+		ResourceKey<LootTable> injectLootTable = ResourceKey.create(Registries.LOOT_TABLE, location);
+		LOOT_INJECTS.put(vanillaLootTable, injectLootTable);
+		return injectLootTable;
+	}
+
+	public ChestLootInjectSubProvider(HolderLookup.Provider registries) {
+	}
 
 	@Override
-	public void generate(BiConsumer<ResourceLocation, LootTable.Builder> tables) {
+	public void generate(BiConsumer<ResourceKey<LootTable>, LootTable.Builder> tables) {
 		tables.accept(ABANDONED_MINESHAFT, getLootTable(61,
 				getItemLootEntry(ModItems.RIB_BONE.get(), 10, 2),
 				getItemLootEntry(ModItems.SLIME_PEARL.get(), 8, 3),

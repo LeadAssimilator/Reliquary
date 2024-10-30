@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:potions_enabled"
+    }
+  ],
+  "type": "reliquary:potion_effects",
+  "duration_factor": 1.0,
+  "key": {
+    "B": {
+      "item": "reliquary:bullets/buster_bullet"
+    },
+    "M": {
+      "item": "reliquary:magazines/empty_magazine"
+    }
+  },
+  "pattern": [
+    "BBB",
+    "BMB",
+    "BBB"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:magazines/buster_magazine"
+  }
+}

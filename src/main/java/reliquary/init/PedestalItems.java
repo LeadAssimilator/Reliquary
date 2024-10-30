@@ -8,14 +8,9 @@ import net.minecraft.world.level.block.PoweredBlock;
 import net.minecraft.world.level.block.RedStoneWireBlock;
 import reliquary.items.HarvestRodItem;
 import reliquary.items.RendingGaleItem;
+import reliquary.items.RodOfLyssaItem;
 import reliquary.pedestal.PedestalRegistry;
-import reliquary.pedestal.wrappers.PedestalBucketWrapper;
-import reliquary.pedestal.wrappers.PedestalFishingRodWrapper;
-import reliquary.pedestal.wrappers.PedestalHarvestRodWrapper;
-import reliquary.pedestal.wrappers.PedestalMeleeWeaponWrapper;
-import reliquary.pedestal.wrappers.PedestalRedstoneWrapper;
-import reliquary.pedestal.wrappers.PedestalRendingGaleWrapper;
-import reliquary.pedestal.wrappers.PedestalShearsWrapper;
+import reliquary.pedestal.wrappers.*;
 
 public class PedestalItems {
 	private PedestalItems() {}
@@ -29,5 +24,6 @@ public class PedestalItems {
 		PedestalRegistry.registerItemBlockWrapper(RedStoneWireBlock.class, PedestalRedstoneWrapper.Toggleable::new);
 		PedestalRegistry.registerItemBlockWrapper(PoweredBlock.class, PedestalRedstoneWrapper.AlwaysOn::new);
 		PedestalRegistry.registerItemWrapper(FishingRodItem.class, PedestalFishingRodWrapper::new);
+		PedestalRegistry.registerItemWrapper(RodOfLyssaItem.class, PedestalFishingRodWrapper::new);
 	}
 }

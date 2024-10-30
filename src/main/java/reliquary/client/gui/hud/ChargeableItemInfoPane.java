@@ -67,11 +67,6 @@ public class ChargeableItemInfoPane extends Component {
 	}
 
 	@Override
-	public int getPadding() {
-		return 1;
-	}
-
-	@Override
 	public boolean shouldRender() {
 		return !InventoryHelper.getCorrectItemFromEitherHand(Minecraft.getInstance().player, mainItem.getItem()).isEmpty();
 	}

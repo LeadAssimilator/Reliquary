@@ -69,18 +69,18 @@ public class VoidTearModel implements BakedModel {
 	public ItemOverrides getOverrides() {
 		return new ItemOverrides() {
 			@Override
-			public BakedModel resolve(BakedModel model, ItemStack stack, @Nullable ClientLevel world, @Nullable LivingEntity entity, int seed) {
+			public BakedModel resolve(BakedModel model, ItemStack stack, @Nullable ClientLevel level, @Nullable LivingEntity entity, int seed) {
 				if (Screen.hasShiftDown()) {
-					ItemStack containedStack = VoidTearItem.getTearContents(stack, true);
+					ItemStack containedStack = VoidTearItem.getTearContents(stack);
 					if (!containedStack.isEmpty()) {
-						BakedModel bakedModel = Minecraft.getInstance().getItemRenderer().getModel(containedStack, world, entity, seed);
+						BakedModel bakedModel = Minecraft.getInstance().getItemRenderer().getModel(containedStack, level, entity, seed);
 						if (!bakedModel.isCustomRenderer()) {
 							return bakedModel;
 						}
 					}
 				}
 
-				return originalModel.getOverrides().resolve(model, stack, world, entity, seed);
+				return originalModel.getOverrides().resolve(model, stack, level, entity, seed);
 			}
 		};
 	}

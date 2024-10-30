@@ -1,41 +1,28 @@
 package reliquary.items;
 
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobType;
-import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Rarity;
-import net.minecraft.world.item.SwordItem;
-import net.minecraft.world.item.Tiers;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraft.world.item.*;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class MercyCrossItem extends SwordItem implements ICreativeTabItemGenerator {
-	private static final String WEAPON_MODIFIER_NAME = "Weapon modifier";
-
 	public MercyCrossItem() {
-		super(Tiers.GOLD, 3, -2.4F, new Properties().stacksTo(1).durability(64));
-		MinecraftForge.EVENT_BUS.addListener(this::handleDamage);
+		super(Tiers.GOLD, new Properties().stacksTo(1).durability(64).rarity(Rarity.EPIC)
+				.attributes(SwordItem.createAttributes(Tiers.GOLD, 6, -2.4f)));
+		NeoForge.EVENT_BUS.addListener(this::handleDamage);
 	}
 
 	@Override
@@ -44,32 +31,8 @@ public class MercyCrossItem extends SwordItem implements ICreativeTabItemGenerat
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void appendHoverText(ItemStack cross, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack cross, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		tooltip.add(Component.translatable(getDescriptionId() + ".tooltip").withStyle(ChatFormatting.GRAY));
-	}
-
-	@Override
-	public float getDamage() {
-		return 0.0F;
-	}
-
-	@Override
-	public Multimap<Attribute, AttributeModifier> getAttributeModifiers(EquipmentSlot slot, ItemStack stack) {
-		if (slot == EquipmentSlot.MAINHAND) {
-			return ImmutableMultimap.<Attribute, AttributeModifier>builder()
-					.putAll(super.getAttributeModifiers(slot, stack))
-					.put(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, WEAPON_MODIFIER_NAME, 6, AttributeModifier.Operation.ADDITION))
-					.put(Attributes.ATTACK_SPEED, new AttributeModifier(BASE_ATTACK_SPEED_UUID, WEAPON_MODIFIER_NAME, -2.4000000953674316D, AttributeModifier.Operation.ADDITION))
-					.build();
-		} else {
-			return super.getAttributeModifiers(slot, stack);
-		}
 	}
 
 	private void handleDamage(AttackEntityEvent event) {
@@ -90,9 +53,9 @@ public class MercyCrossItem extends SwordItem implements ICreativeTabItemGenerat
 
 		//noinspection ConstantConditions
 		if (attackAttribute != null &&
-				(attackAttribute.getModifier(BASE_ATTACK_DAMAGE_UUID) == null || attackAttribute.getModifier(BASE_ATTACK_DAMAGE_UUID).getAmount() != dmg)) {
-			attackAttribute.removeModifier(BASE_ATTACK_DAMAGE_UUID);
-			attackAttribute.addTransientModifier(new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, WEAPON_MODIFIER_NAME, dmg, AttributeModifier.Operation.ADDITION));
+				(attackAttribute.getModifier(BASE_ATTACK_DAMAGE_ID) == null || attackAttribute.getModifier(BASE_ATTACK_DAMAGE_ID).amount() != dmg)) {
+			attackAttribute.removeModifier(BASE_ATTACK_DAMAGE_ID);
+			attackAttribute.addTransientModifier(new AttributeModifier(BASE_ATTACK_DAMAGE_ID, dmg, AttributeModifier.Operation.ADD_VALUE));
 		}
 	}
 
@@ -105,6 +68,6 @@ public class MercyCrossItem extends SwordItem implements ICreativeTabItemGenerat
 	}
 
 	private boolean isUndead(LivingEntity e) {
-		return e.getMobType() == MobType.UNDEAD;
+		return e.getType().is(EntityTypeTags.UNDEAD);
 	}
 }

@@ -3,20 +3,20 @@ package reliquary.compat.jei;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.registration.IRecipeRegistration;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
+import reliquary.Reliquary;
 import reliquary.init.ModBlocks;
 import reliquary.init.ModItems;
 import reliquary.items.ICreativeTabItemGenerator;
 import reliquary.items.MobCharmFragmentItem;
 import reliquary.items.MobCharmItem;
-import reliquary.reference.Reference;
 import reliquary.util.RegistryHelper;
-import reliquary.util.potions.XRPotionHelper;
 
 import java.util.List;
 import java.util.function.Function;
@@ -154,7 +154,7 @@ public class ItemDescriptionBuilder {
 	private static Component[] getTranslationKeys(String... langKeys) {
 		Component[] components = new Component[langKeys.length];
 		for (int i = 0; i < langKeys.length; i++) {
-			components[i] = Component.translatable(String.format("jei.%s.description.%s", Reference.MOD_ID, langKeys[i].replace('/', '.')));
+			components[i] = Component.translatable(String.format("jei.%s.description.%s", Reliquary.MOD_ID, langKeys[i].replace('/', '.')));
 		}
 
 		return components;
@@ -162,7 +162,7 @@ public class ItemDescriptionBuilder {
 
 	private static void registerCharmFragmentItemsDescription(IRecipeRegistration registration) {
 		MobCharmFragmentItem item = ModItems.MOB_CHARM_FRAGMENT.get();
-		registerCharmBasedItems(registration, item, MobCharmFragmentItem::getEntityEggRegistryName);
+		registerCharmBasedItems(registration, item, MobCharmFragmentItem::getEntityRegistryName);
 	}
 
 	private static void registerCharmItemsDescription(IRecipeRegistration registration) {
@@ -174,12 +174,9 @@ public class ItemDescriptionBuilder {
 		NonNullList<ItemStack> subItems = NonNullList.create();
 		item.addCreativeTabItems(subItems::add);
 		for (ItemStack subItem : subItems) {
-			EntityType<?> entityType = ForgeRegistries.ENTITY_TYPES.getValue(getEntityRegistryName.apply(subItem));
-			if (entityType == null) {
-				continue;
-			}
+			EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(getEntityRegistryName.apply(subItem));
 			String path = RegistryHelper.getRegistryName(item).getPath();
-			String itemDescriptionKey = String.format("jei.%s.description.%s", Reference.MOD_ID, path.replace('/', '.'));
+			String itemDescriptionKey = String.format("jei.%s.description.%s", Reliquary.MOD_ID, path.replace('/', '.'));
 			String entityName = entityType.getDescription().getString();
 			registration.addIngredientInfo(subItem, VanillaTypes.ITEM_STACK, Component.translatable(itemDescriptionKey, entityName, entityName));
 		}
@@ -190,7 +187,7 @@ public class ItemDescriptionBuilder {
 		NonNullList<ItemStack> potionItems = NonNullList.create();
 		item.addCreativeTabItems(subItems::add);
 		for (ItemStack subItem : subItems) {
-			if (!XRPotionHelper.getPotionEffectsFromStack(subItem).isEmpty()) {
+			if (subItem.has(DataComponents.POTION_CONTENTS)) {
 				potionItems.add(subItem);
 			}
 		}
@@ -202,7 +199,7 @@ public class ItemDescriptionBuilder {
 		NonNullList<ItemStack> nonPotionItems = NonNullList.create();
 		item.addCreativeTabItems(subItems::add);
 		for (ItemStack subItem : subItems) {
-			if (XRPotionHelper.getPotionEffectsFromStack(subItem).isEmpty()) {
+			if (!subItem.has(DataComponents.POTION_CONTENTS)) {
 				nonPotionItems.add(subItem);
 			}
 		}

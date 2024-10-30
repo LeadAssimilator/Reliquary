@@ -2,6 +2,7 @@ package reliquary.items;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -17,13 +18,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.ShearsItem;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.Unbreakable;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BeehiveBlock;
 import net.minecraft.world.level.block.Block;
@@ -32,21 +29,18 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.IForgeShearable;
-import reliquary.entities.EntityXRFakePlayer;
+import net.neoforged.neoforge.common.IShearable;
+import reliquary.entities.ReliquaryFakePlayer;
+import reliquary.util.FakePlayerFactory;
 import reliquary.util.RandHelper;
 import reliquary.util.TooltipBuilder;
-import reliquary.util.XRFakePlayerFactory;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGenerator {
 	public ShearsOfWinterItem() {
-		super(new Properties().durability(0));
+		super(new Properties().component(DataComponents.UNBREAKABLE, new Unbreakable(true)));
 	}
 
 	@Override
@@ -56,29 +50,29 @@ public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGe
 
 	@Override
 	public InteractionResult useOn(UseOnContext context) {
-		Level world = context.getLevel();
+		Level level = context.getLevel();
 		BlockPos pos = context.getClickedPos();
-		BlockState state = world.getBlockState(pos);
+		BlockState state = level.getBlockState(pos);
 		Block block = state.getBlock();
 		if (block instanceof BeehiveBlock) {
-			shearBeehive(world, pos, state, context.getClickLocation(), context.getClickedFace());
+			shearBeehive(level, pos, state, context.getClickLocation(), context.getClickedFace());
 		}
 		return super.useOn(context);
 	}
 
-	private void shearBeehive(Level world, BlockPos pos, BlockState state, Vec3 hitVec, Direction face) {
-		if (!(world instanceof ServerLevel)) {
+	private void shearBeehive(Level level, BlockPos pos, BlockState state, Vec3 hitVec, Direction face) {
+		if (!(level instanceof ServerLevel)) {
 			return;
 		}
 
 		ItemStack fakeShears = new ItemStack(Items.SHEARS);
-		EntityXRFakePlayer fakePlayer = XRFakePlayerFactory.get((ServerLevel) world);
+		ReliquaryFakePlayer fakePlayer = FakePlayerFactory.get((ServerLevel) level);
 		fakePlayer.setItemInHand(InteractionHand.MAIN_HAND, fakeShears);
-		state.use(world, fakePlayer, InteractionHand.MAIN_HAND, new BlockHitResult(hitVec, face, pos, false));
+		state.useItemOn(fakeShears, level, fakePlayer, InteractionHand.MAIN_HAND, new BlockHitResult(hitVec, face, pos, false));
 	}
 
 	@Override
-	public int getUseDuration(ItemStack par1ItemStack) {
+	public int getUseDuration(ItemStack stack, LivingEntity livingEntity) {
 		return 2500;
 	}
 
@@ -88,7 +82,7 @@ public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGe
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		player.startUsingItem(hand);
 		return new InteractionResultHolder<>(InteractionResult.SUCCESS, player.getItemInHand(hand));
 	}
@@ -96,7 +90,7 @@ public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGe
 	@Override
 	public void onUseTick(Level level, LivingEntity livingEntity, ItemStack stack, int remainingUseDuration) {
 		//start the blizzard after a short delay, this prevents some abuse.
-		if (getUseDuration(stack) - remainingUseDuration <= 5 || !(livingEntity instanceof Player player)) {
+		if (getUseDuration(stack, livingEntity) - remainingUseDuration <= 5 || !(livingEntity instanceof Player player)) {
 			return;
 		}
 
@@ -133,9 +127,8 @@ public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGe
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void appendHoverText(ItemStack shears, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
-		TooltipBuilder.of(tooltip).itemTooltip(this);
+	public void appendHoverText(ItemStack shears, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+		TooltipBuilder.of(tooltip, context).itemTooltip(this);
 	}
 
 	private void checkAndShearBlockAt(Player player, BlockPos pos) {
@@ -148,27 +141,27 @@ public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGe
 	}
 
 	private void shearBlockAt(BlockPos pos, Player player) {
-		Level world = player.level();
-		BlockState blockState = world.getBlockState(pos);
+		Level level = player.level();
+		BlockState blockState = level.getBlockState(pos);
 		Block block = blockState.getBlock();
-		if (block instanceof IForgeShearable target) {
+		if (block instanceof IShearable target) {
 			ItemStack dummyShears = new ItemStack(Items.SHEARS);
-			if (target.isShearable(dummyShears, world, pos) && removeBlock(player, pos, blockState.canHarvestBlock(world, pos, player))) {
+			if (target.isShearable(player, dummyShears, level, pos) && removeBlock(player, pos, blockState.canHarvestBlock(level, pos, player))) {
 				player.awardStat(Stats.BLOCK_MINED.get(block));
 				player.causeFoodExhaustion(0.01F);
-				Block.dropResources(blockState, world, pos, null, player, dummyShears);
+				Block.dropResources(blockState, level, pos, null, player, dummyShears);
 			}
 		} else if (block instanceof BeehiveBlock) {
-			shearBeehive(world, pos, blockState, Vec3.ZERO, Direction.UP);
+			shearBeehive(level, pos, blockState, Vec3.ZERO, Direction.UP);
 		}
 	}
 
 	@Override
-	public boolean mineBlock(ItemStack stack, Level worldIn, BlockState state, BlockPos pos, LivingEntity entityLiving) {
-		if (entityLiving instanceof Player player) {
+	public boolean mineBlock(ItemStack stack, Level level, BlockState state, BlockPos pos, LivingEntity livingEntity) {
+		if (livingEntity instanceof Player player) {
 			shearBlockAt(pos, player);
 		}
-		return super.mineBlock(stack, worldIn, state, pos, entityLiving);
+		return super.mineBlock(stack, level, state, pos, livingEntity);
 	}
 
 	private boolean removeBlock(Player player, BlockPos pos, boolean canHarvest) {
@@ -201,17 +194,17 @@ public class ShearsOfWinterItem extends ShearsItem implements ICreativeTabItemGe
 			if (!e.is(player)) {
 				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 120, 1));
 			}
-			if (e instanceof IForgeShearable) {
+			if (e instanceof IShearable) {
 				shearEntity(stack, player, rand, e);
 			}
 		}
 	}
 
 	private void shearEntity(ItemStack stack, Player player, RandomSource rand, Mob e) {
-		IForgeShearable target = (IForgeShearable) e;
+		IShearable target = (IShearable) e;
 		BlockPos pos = e.blockPosition();
-		if (target.isShearable(new ItemStack(Items.SHEARS), e.level(), pos)) {
-			List<ItemStack> drops = target.onSheared(player, stack, e.level(), pos, stack.getEnchantmentLevel(Enchantments.BLOCK_FORTUNE));
+		if (target.isShearable(player, new ItemStack(Items.SHEARS), e.level(), pos)) {
+			List<ItemStack> drops = target.onSheared(player, stack, e.level(), pos);
 			drops.forEach(d -> {
 				ItemEntity ent = e.spawnAtLocation(d, 1.0F);
 				if (ent != null) {

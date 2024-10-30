@@ -1,0 +1,27 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "tag": "c:slimeballs"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    },
+    {
+      "tag": "c:gunpowders"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "id": "reliquary:bullets/concussive_bullet"
+  }
+}

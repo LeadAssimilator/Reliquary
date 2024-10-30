@@ -1,0 +1,32 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:passive_pedestal_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": {
+      "item": "minecraft:light_blue_carpet"
+    },
+    "G": {
+      "tag": "c:nuggets/gold"
+    },
+    "Q": {
+      "item": "minecraft:quartz_block"
+    },
+    "S": {
+      "item": "minecraft:quartz_slab"
+    }
+  },
+  "pattern": [
+    " C ",
+    "GQG",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:pedestals/passive/light_blue_passive_pedestal"
+  }
+}

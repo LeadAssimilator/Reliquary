@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "reliquary:slime_pearl"
+    },
+    "S": {
+      "tag": "c:slimeballs"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "SSS",
+    "PPP"
+  ],
+  "result": {
+    "components": {
+      "reliquary:entity_name": "minecraft:slime"
+    },
+    "count": 1,
+    "id": "reliquary:mob_charm_fragment"
+  }
+}

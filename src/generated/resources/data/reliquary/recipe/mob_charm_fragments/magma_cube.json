@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "reliquary:molten_core"
+    },
+    "S": {
+      "item": "minecraft:magma_cream"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "SSS",
+    "PPP"
+  ],
+  "result": {
+    "components": {
+      "reliquary:entity_name": "minecraft:magma_cube"
+    },
+    "count": 1,
+    "id": "reliquary:mob_charm_fragment"
+  }
+}

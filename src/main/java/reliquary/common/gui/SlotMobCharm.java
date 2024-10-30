@@ -23,7 +23,7 @@ class SlotMobCharm extends Slot {
 	}
 
 	@Override
-	public void set( ItemStack stack) {
+	public void set(ItemStack stack) {
 		ModItems.MOB_CHARM_BELT.get().putMobCharmInSlot(belt, getSlotIndex(), stack);
 	}
 
@@ -43,12 +43,7 @@ class SlotMobCharm extends Slot {
 		if(amount > 1) {
 			return ItemStack.EMPTY;
 		}
-
-		ItemStack mobCharm = ModItems.MOB_CHARM_BELT.get().getMobCharmInSlot(belt, getSlotIndex());
-
-		ModItems.MOB_CHARM_BELT.get().removeMobCharmInSlot(belt, getSlotIndex());
-
-		return mobCharm;
+		return ModItems.MOB_CHARM_BELT.get().removeMobCharmInSlot(belt, getSlotIndex());
 	}
 
 	@Override

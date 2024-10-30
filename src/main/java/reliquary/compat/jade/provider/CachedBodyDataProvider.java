@@ -3,7 +3,7 @@ package reliquary.compat.jade.provider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.ITooltip;
@@ -20,7 +20,7 @@ public abstract class CachedBodyDataProvider implements IBlockComponentProvider 
 
 	@Override
 	public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig pluginConfig) {
-		if (Boolean.TRUE.equals(Settings.CLIENT.wailaShiftForInfo.get()) && !accessor.getPlayer().isCrouching()) {
+		if (Boolean.TRUE.equals(Config.CLIENT.wailaShiftForInfo.get()) && !accessor.getPlayer().isCrouching()) {
 			tooltip.add(Component.translatable("waila.reliquary.shift_for_more").withStyle(ChatFormatting.ITALIC));
 			return;
 		}
@@ -28,11 +28,11 @@ public abstract class CachedBodyDataProvider implements IBlockComponentProvider 
 		IJadeDataChangeIndicator changeIndicator = (IJadeDataChangeIndicator) accessor.getBlockEntity();
 
 		if (changeIndicator == null || cachedBody == null || cachedPosition == null || !cachedPosition.equals(accessor.getPosition()) || changeIndicator.getDataChanged()) {
-			cachedBody = getWailaBodyToCache(tooltip.getElementHelper(), accessor, pluginConfig);
+			cachedBody = getWailaBodyToCache(IElementHelper.get(), accessor, pluginConfig);
 			cachedPosition = accessor.getPosition();
 		}
 
-		cachedBody = updateCache(tooltip.getElementHelper(), accessor, cachedBody);
+		cachedBody = updateCache(IElementHelper.get(), accessor, cachedBody);
 
 		for (List<IElement> line : cachedBody) {
 			tooltip.add(line);

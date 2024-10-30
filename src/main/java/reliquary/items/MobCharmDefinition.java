@@ -1,54 +1,57 @@
 package reliquary.items;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import reliquary.init.ModItems;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 public class MobCharmDefinition {
-	static final MobCharmDefinition ZOMBIE = new MobCharmDefinition("minecraft:zombie", ModItems.ZOMBIE_HEART.get(), "minecraft:zombie", "minecraft:husk", "minecraft:drowned", "minecraft:zombie_villager");
-	static final MobCharmDefinition SKELETON = new MobCharmDefinition("minecraft:skeleton", ModItems.RIB_BONE.get(), "minecraft:skeleton", "minecraft:stray");
-	static final MobCharmDefinition WITHER_SKELETON = new MobCharmDefinition("minecraft:wither_skeleton", ModItems.WITHERED_RIB.get(), "minecraft:wither_skeleton");
-	static final MobCharmDefinition CREEPER = new MobCharmDefinition("minecraft:creeper", ModItems.CATALYZING_GLAND.get(), "minecraft:creeper");
-	static final MobCharmDefinition WITCH = new MobCharmDefinition("minecraft:witch", ModItems.WITCH_HAT.get(), "minecraft:witch");
-	static final MobCharmDefinition ZOMBIFIED_PIGLIN = new MobCharmDefinition("minecraft:zombified_piglin", ModItems.ZOMBIE_HEART.get(), "minecraft:zombified_piglin");
-	static final MobCharmDefinition CAVE_SPIDER = new MobCharmDefinition("minecraft:cave_spider", ModItems.CHELICERAE.get(), "minecraft:cave_spider");
-	static final MobCharmDefinition SPIDER = new MobCharmDefinition("minecraft:spider", ModItems.CHELICERAE.get(), "minecraft:spider");
-	static final MobCharmDefinition ENDERMAN = new MobCharmDefinition("minecraft:enderman", ModItems.NEBULOUS_HEART.get(), "minecraft:enderman");
-	static final MobCharmDefinition GHAST = new MobCharmDefinition("minecraft:ghast", ModItems.CATALYZING_GLAND.get(), "minecraft:ghast");
-	static final MobCharmDefinition SLIME = new MobCharmDefinition("minecraft:slime", ModItems.SLIME_PEARL.get(), "minecraft:slime");
-	static final MobCharmDefinition MAGMA_CUBE = new MobCharmDefinition("minecraft:magma_cube", ModItems.MOLTEN_CORE.get(), "minecraft:magma_cube");
-	static final MobCharmDefinition BLAZE = new MobCharmDefinition("minecraft:blaze", ModItems.MOLTEN_CORE.get(), "minecraft:blaze");
-	static final MobCharmDefinition GUARDIAN = new MobCharmDefinition("minecraft:guardian", ModItems.GUARDIAN_SPIKE.get(), "minecraft:guardian");
-	static final MobCharmDefinition PIGLIN = new MobCharmDefinition("minecraft:piglin", null, "minecraft:piglin");
-	static final MobCharmDefinition PIGLIN_BRUTE = new MobCharmDefinition("minecraft:piglin_brute", null, "minecraft:piglin_brute");
-	static final MobCharmDefinition HOGLIN = new MobCharmDefinition("minecraft:hoglin", null, "minecraft:hoglin");
+	static final MobCharmDefinition ZOMBIE = new MobCharmDefinition(EntityType.ZOMBIE, ModItems.ZOMBIE_HEART.get(), EntityType.HUSK, EntityType.DROWNED, EntityType.ZOMBIE_VILLAGER);
+	static final MobCharmDefinition SKELETON = new MobCharmDefinition(EntityType.SKELETON, ModItems.RIB_BONE.get(), EntityType.STRAY);
+	static final MobCharmDefinition WITHER_SKELETON = new MobCharmDefinition(EntityType.WITHER_SKELETON, ModItems.WITHERED_RIB.get());
+	static final MobCharmDefinition CREEPER = new MobCharmDefinition(EntityType.CREEPER, ModItems.CATALYZING_GLAND.get());
+	static final MobCharmDefinition WITCH = new MobCharmDefinition(EntityType.WITCH, ModItems.WITCH_HAT.get());
+	static final MobCharmDefinition ZOMBIFIED_PIGLIN = new MobCharmDefinition(EntityType.ZOMBIFIED_PIGLIN, ModItems.ZOMBIE_HEART.get());
+	static final MobCharmDefinition CAVE_SPIDER = new MobCharmDefinition(EntityType.CAVE_SPIDER, ModItems.CHELICERAE.get());
+	static final MobCharmDefinition SPIDER = new MobCharmDefinition(EntityType.SPIDER, ModItems.CHELICERAE.get());
+	static final MobCharmDefinition ENDERMAN = new MobCharmDefinition(EntityType.ENDERMAN, ModItems.NEBULOUS_HEART.get());
+	static final MobCharmDefinition GHAST = new MobCharmDefinition(EntityType.GHAST, ModItems.CATALYZING_GLAND.get());
+	static final MobCharmDefinition SLIME = new MobCharmDefinition(EntityType.SLIME, ModItems.SLIME_PEARL.get());
+	static final MobCharmDefinition MAGMA_CUBE = new MobCharmDefinition(EntityType.MAGMA_CUBE, ModItems.MOLTEN_CORE.get());
+	static final MobCharmDefinition BLAZE = new MobCharmDefinition(EntityType.BLAZE, ModItems.MOLTEN_CORE.get());
+	static final MobCharmDefinition GUARDIAN = new MobCharmDefinition(EntityType.GUARDIAN, ModItems.GUARDIAN_SPIKE.get());
+	static final MobCharmDefinition PIGLIN = new MobCharmDefinition(EntityType.PIGLIN, null);
+	static final MobCharmDefinition PIGLIN_BRUTE = new MobCharmDefinition(EntityType.PIGLIN_BRUTE, null);
+	static final MobCharmDefinition HOGLIN = new MobCharmDefinition(EntityType.HOGLIN, null);
 
-	private final Set<String> applicableToEntities = new HashSet<>();
-	private final String registryName;
+	private final Set<ResourceLocation> applicableToEntities = new HashSet<>();
+	private final ResourceLocation registryName;
 	private final Item repairItem;
 	private boolean dynamicallyCreated = false;
 
-	public MobCharmDefinition(String registryName) {
-		this(registryName, null, registryName);
+	public MobCharmDefinition(EntityType<?> entityType) {
+		this(entityType, null, entityType);
 		dynamicallyCreated = true;
 	}
 
-	public MobCharmDefinition(String registryName, @Nullable Item repairItem, String... applicableTo) {
-		this.registryName = registryName;
+	public MobCharmDefinition(EntityType<?> mainEntityType, @Nullable Item repairItem, EntityType<?>... additionalApplicableTo) {
+		this.registryName = EntityType.getKey(mainEntityType);
 		this.repairItem = repairItem;
-		Collections.addAll(applicableToEntities, applicableTo);
+		applicableToEntities.add(registryName);
+		Arrays.stream(additionalApplicableTo).map(EntityType::getKey).forEach(applicableToEntities::add);
 	}
 
-	public String getRegistryName() {
+	public ResourceLocation getRegistryName() {
 		return registryName;
 	}
 
-	public Set<String> getEntities() {
+	public Set<ResourceLocation> getEntities() {
 		return applicableToEntities;
 	}
 

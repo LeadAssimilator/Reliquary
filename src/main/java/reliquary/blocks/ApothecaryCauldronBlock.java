@@ -2,7 +2,7 @@ package reliquary.blocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -26,7 +26,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import reliquary.blocks.tile.ApothecaryCauldronBlockEntity;
 import reliquary.init.ModBlocks;
 import reliquary.items.ICreativeTabItemGenerator;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.BlockEntityHelper;
 import reliquary.util.WorldHelper;
 
@@ -65,7 +65,7 @@ public class ApothecaryCauldronBlock extends Block implements EntityBlock, ICrea
 
 	@Override
 	public void addCreativeTabItems(Consumer<ItemStack> itemConsumer) {
-		if (Boolean.TRUE.equals(Settings.COMMON.disable.disablePotions.get())) {
+		if (Boolean.TRUE.equals(Config.COMMON.disable.disablePotions.get())) {
 			return;
 		}
 		itemConsumer.accept(new ItemStack(this));
@@ -77,42 +77,41 @@ public class ApothecaryCauldronBlock extends Block implements EntityBlock, ICrea
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return SHAPE;
 	}
 
 	@Override
-	public VoxelShape getInteractionShape(BlockState state, BlockGetter worldIn, BlockPos pos) {
+	public VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return INSIDE;
 	}
 
 	@Override
-	public void entityInside(BlockState state, Level world, BlockPos pos, Entity entity) {
-		if (!world.isClientSide) {
-			ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) world.getBlockEntity(pos);
+	public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+		if (!level.isClientSide) {
+			ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) level.getBlockEntity(pos);
 			if (cauldron != null) {
-				cauldron.handleCollidingEntity(world, pos, entity);
+				cauldron.handleCollidingEntity(level, pos, entity);
 			}
 		}
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(hand);
-		if (world.isClientSide) {
-			return !heldItem.isEmpty() ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
+	protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+		if (level.isClientSide) {
+			return !heldItem.isEmpty() ? ItemInteractionResult.SUCCESS : ItemInteractionResult.CONSUME;
 		} else {
 			if (heldItem.isEmpty()) {
-				return InteractionResult.CONSUME;
+				return ItemInteractionResult.CONSUME;
 			} else {
-				ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) world.getBlockEntity(pos);
+				ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) level.getBlockEntity(pos);
 
 				if (cauldron != null) {
-					return cauldron.handleBlockActivation(world, player, hand, pos);
+					return cauldron.handleBlockActivation(level, player, hand, pos);
 				}
 			}
 		}
-		return InteractionResult.CONSUME;
+		return ItemInteractionResult.CONSUME;
 	}
 
 	@Override
@@ -138,8 +137,8 @@ public class ApothecaryCauldronBlock extends Block implements EntityBlock, ICrea
 	 * comparator.
 	 */
 	@Override
-	public int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
-		ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) world.getBlockEntity(pos);
+	public int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
+		ApothecaryCauldronBlockEntity cauldron = (ApothecaryCauldronBlockEntity) level.getBlockEntity(pos);
 		if (cauldron != null) {
 			return cauldron.getLiquidLevel();
 		}

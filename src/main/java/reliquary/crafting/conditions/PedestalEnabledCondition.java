@@ -1,21 +1,20 @@
 package reliquary.crafting.conditions;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import com.mojang.serialization.MapCodec;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import reliquary.reference.Config;
 
 public class PedestalEnabledCondition implements ICondition {
-	private static final ResourceLocation ID = new ResourceLocation(Reference.MOD_ID, "pedestal_enabled");
-	public static final SimpleConditionSerializer<PedestalEnabledCondition> SERIALIZER = new SimpleConditionSerializer<>(ID, PedestalEnabledCondition::new);
-
-	@Override
-	public ResourceLocation getID() {
-		return ID;
-	}
+	private static final PedestalEnabledCondition INSTANCE = new PedestalEnabledCondition();
+	public static final MapCodec<PedestalEnabledCondition> CODEC = MapCodec.unit(INSTANCE).stable();
 
 	@Override
 	public boolean test(IContext context) {
-		return !Settings.COMMON.disable.disablePedestal.get();
+		return !Config.COMMON.disable.disablePedestal.get();
+	}
+
+	@Override
+	public MapCodec<? extends ICondition> codec() {
+		return CODEC;
 	}
 }

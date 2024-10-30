@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:ice_magus_rod"
+    },
+    {
+      "type": "neoforge:components",
+      "components": {
+        "minecraft:attribute_modifiers": {
+          "modifiers": []
+        },
+        "minecraft:enchantments": {
+          "levels": {}
+        },
+        "minecraft:lore": [],
+        "minecraft:max_stack_size": 64,
+        "minecraft:rarity": "common",
+        "minecraft:repair_cost": 0
+      },
+      "items": "reliquary:void_tear",
+      "strict": true
+    },
+    {
+      "item": "reliquary:frozen_core"
+    },
+    {
+      "item": "reliquary:shears_of_winter"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:glacial_staff"
+  }
+}

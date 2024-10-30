@@ -1,0 +1,23 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:potions_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "c:glass_panes"
+    }
+  },
+  "pattern": [
+    "G G",
+    "G G",
+    " G "
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:empty_potion_vial"
+  }
+}

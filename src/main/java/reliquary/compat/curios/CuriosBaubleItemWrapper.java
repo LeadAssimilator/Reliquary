@@ -1,6 +1,5 @@
 package reliquary.compat.curios;
 
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import reliquary.items.util.ICuriosItem;
 import top.theillusivec4.curios.api.SlotContext;
@@ -22,16 +21,16 @@ class CuriosBaubleItemWrapper implements ICurio {
 
 	@Override
 	public void onEquip(SlotContext slotContext, ItemStack prevStack) {
-		curiosItem.onEquipped(slotContext.getIdentifier(), slotContext.getWearer());
+		curiosItem.onEquipped(slotContext.identifier(), slotContext.entity());
 	}
 
 	@Override
-	public void curioTick(String identifier, int index, LivingEntity livingEntity) {
-		CuriosCompat.getStackInSlot(livingEntity, identifier, index).ifPresent(stack -> curiosItem.onWornTick(stack, livingEntity));
+	public void curioTick(SlotContext slotContext) {
+		CuriosCompat.getStackInSlot(slotContext.entity(), slotContext.identifier(), slotContext.index()).ifPresent(stack -> curiosItem.onWornTick(stack, slotContext.entity()));
 	}
 
 	@Override
-	public boolean canEquip(String identifier, LivingEntity livingEntity) {
-		return curiosItem.getCuriosType().getIdentifier().equals(identifier);
+	public boolean canEquip(SlotContext slotContext) {
+		return curiosItem.getCuriosType().getIdentifier().equals(slotContext.identifier());
 	}
 }

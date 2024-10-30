@@ -4,8 +4,8 @@ package reliquary.items;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.neoforged.fml.relauncher.Side;
+import net.neoforged.fml.relauncher.SideOnly;
 import reliquary.Reliquary;
 import reliquary.reference.Names;
 
@@ -71,7 +71,6 @@ public class ItemElsewhereFlask extends ItemBase {
 
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
 	public EnumRarity getRarity(ItemStack stack) {
 		return EnumRarity.EPIC;
 	}

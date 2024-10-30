@@ -1,28 +1,25 @@
 package reliquary.blocks.tile;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import reliquary.compat.jade.provider.IJadeDataChangeIndicator;
 import reliquary.init.ModBlocks;
 import reliquary.init.ModItems;
 import reliquary.util.InventoryHelper;
 import reliquary.util.WorldHelper;
+import reliquary.util.potions.PotionHelper;
 import reliquary.util.potions.PotionIngredient;
-import reliquary.util.potions.XRPotionHelper;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,7 +56,7 @@ public class ApothecaryMortarBlockEntity extends BlockEntityBase implements IJad
 					return false;
 				}
 			}
-			return XRPotionHelper.isIngredient(stack) || XRPotionHelper.isItemEssence(stack);
+			return PotionHelper.isIngredient(stack) || PotionHelper.isItemEssence(stack);
 		}
 
 		@Override
@@ -76,17 +73,17 @@ public class ApothecaryMortarBlockEntity extends BlockEntityBase implements IJad
 	}
 
 	@Override
-	public void load(CompoundTag tag) {
-		super.load(tag);
-		items.deserializeNBT(tag.getCompound("items"));
+	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+		super.loadAdditional(tag, registries);
+		items.deserializeNBT(registries, tag.getCompound("items"));
 		pestleUsedCounter = tag.getShort("pestleUsed");
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag compound) {
-		super.saveAdditional(compound);
+	public void saveAdditional(CompoundTag compound, HolderLookup.Provider registries) {
+		super.saveAdditional(compound, registries);
 		compound.putShort("pestleUsed", (short) pestleUsedCounter);
-		compound.put("items", items.serializeNBT());
+		compound.put("items", items.serializeNBT(registries));
 	}
 
 	// gets the contents of the tile entity as an array of inventory
@@ -103,7 +100,7 @@ public class ApothecaryMortarBlockEntity extends BlockEntityBase implements IJad
 				continue;
 			}
 			++itemCount;
-			XRPotionHelper.getIngredient(item).ifPresent(potionIngredients::add);
+			PotionHelper.getIngredient(item).ifPresent(potionIngredients::add);
 		}
 		if (itemCount > 1) {
 			pestleUsedCounter++;
@@ -113,8 +110,8 @@ public class ApothecaryMortarBlockEntity extends BlockEntityBase implements IJad
 	}
 
 	private boolean createPotionEssence(List<PotionIngredient> potionIngredients, Level level) {
-		List<MobEffectInstance> resultEffects = XRPotionHelper.combineIngredients(potionIngredients);
-		if (resultEffects.isEmpty()) {
+		PotionContents potionContents = PotionHelper.combineIngredients(potionIngredients);
+		if (!potionContents.hasEffects()) {
 			pestleUsedCounter = 0;
 			for (int clearSlot = 0; clearSlot < items.getSlots(); ++clearSlot) {
 				if (items.getStackInSlot(clearSlot).isEmpty()) {
@@ -136,7 +133,7 @@ public class ApothecaryMortarBlockEntity extends BlockEntityBase implements IJad
 				return true;
 			}
 			ItemStack resultItem = new ItemStack(ModItems.POTION_ESSENCE.get());
-			XRPotionHelper.addPotionEffectsToStack(resultItem, resultEffects);
+			PotionHelper.addPotionContentsToStack(resultItem, potionContents);
 
 			ItemEntity itemEntity = new ItemEntity(level, getBlockPos().getX() + 0.5D, getBlockPos().getY() + 0.5D, getBlockPos().getZ() + 0.5D, resultItem);
 			level.addFreshEntity(itemEntity);
@@ -160,14 +157,8 @@ public class ApothecaryMortarBlockEntity extends BlockEntityBase implements IJad
 		return ret;
 	}
 
-
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
-		if (cap == ForgeCapabilities.ITEM_HANDLER) {
-			return ForgeCapabilities.ITEM_HANDLER.orEmpty(cap, LazyOptional.of(() -> items));
-		}
-
-		return super.getCapability(cap, side);
+	public IItemHandler getItems() {
+		return items;
 	}
 
 	public void dropItems(Level level) {

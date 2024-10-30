@@ -1,9 +1,9 @@
 plugins {
+    id 'java-library'
     id 'idea'
-    id "org.sonarqube" version "4.3.1.3277"
-    id "maven-publish"
-    id 'net.neoforged.gradle' version '[6.0.18,6.2)'
-    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '1.0.14'
+    id "org.sonarqube" version "5.0.0.4638"
     id "net.darkhax.curseforgegradle" version "1.1.15"
     id "com.modrinth.minotaur" version "2.+"
 }
@@ -14,6 +14,10 @@ idea {
         downloadSources = true
     }
 }
+
+version = "${project.minecraft_version}-${project.mod_version}.${getBuildNumber()}${getStable()}"
+group = mod_group_id
+
 
 repositories {
     mavenCentral()
@@ -30,41 +34,48 @@ repositories {
     }
 }
 
-group = 'reliquary'
-version = "${project.minecraft_version}-${project.mod_version}.${getBuildNumber()}${getStable()}"
-archivesBaseName = 'reliquary'
+base {
+    archivesName = mod_id
+}
 
-sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '17'
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-minecraft {
-    mappings channel: 'parchment', version: "$parchment_version"
-    copyIdeResources = true
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+neoForge {
+    version = project.neo_version
+
+    accessTransformers = project.files('src/main/resources/META-INF/accesstransformer.cfg')
+
     runs {
         configureEach {
-            workingDirectory project.file("run/${it.name}")
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-            property "mixin.env.disableRefMap", "true"
-            jvmArg '-XX:+AllowEnhancedClassRedefinition'
-            jvmArg '-XX:HotswapAgent=fatjar'
-
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
-            }
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            systemProperty 'forge.logging.console.level', 'debug'
+            systemProperty 'mixin.env.disableRefMap', 'true'
         }
+
         client {
+            client()
         }
-        server {
-        }
-        data {
-            property 'fml.earlyprogresswindow', 'false'
-            //property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            workingDirectory project.file('run')
-            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/')
 
+        client2 {
+            client()
+
+            programArguments.addAll '--username', 'Dev2'
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+        }
+
+        data {
+            data()
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
         }
     }
 }
@@ -73,66 +84,56 @@ sourceSets.main.resources {
     srcDir 'src/generated/resources'
 }
 
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
 dependencies {
-    minecraft "net.neoforged:forge:${minecraft_version}-${neo_version}"
-
-    compileOnly fg.deobf("mezz.jei:jei-${jei_mc_version}:${jei_version}")
-    runtimeOnly fg.deobf("mezz.jei:jei-${jei_mc_version}:${jei_version}")
-    //compileOnly fg.deobf("vazkii.botania:Botania:${botania_version}:api")
-    //runtimeOnly fg.deobf("vazkii.botania:Botania:${botania_version}")
-    //compileOnly fg.deobf("vazkii.patchouli:Patchouli:${patchouli_version}:api")
-    //runtimeOnly fg.deobf("vazkii.patchouli:Patchouli:${patchouli_version}")    //deobfCompile "slimeknights.mantle:Mantle:${mantle_version}"
-    //deobfCompile "slimeknights:TConstruct:${tconstruct_version}"
-    //deobfCompile "jeresources:JustEnoughResources-${minecraft_version}:${jer_version}"
-    //deobfCompile "slimeknights.mantle:Mantle:${mantle_version}"
-    //deobfCompile "slimeknights:TConstruct:${tconstruct_version}"
-    compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}:api")
-    runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}")
-    compileOnly fg.deobf("curse.maven:jade-324717:${jade_cf_file_id}")
-    runtimeOnly fg.deobf("curse.maven:jade-324717:${jade_cf_file_id}")
-
-//    compileOnly fg.deobf("curse.maven:tinkers-74072:3576393")
-//    runtimeOnly fg.deobf("curse.maven:tinkers-74072:3576393")
-//    compileOnly fg.deobf("curse.maven:mantle-74924:3576386")
-//    runtimeOnly fg.deobf("curse.maven:mantle-74924:3576386")
+    compileOnly "mezz.jei:jei-${jei_mc_version}:${jei_version}"
+    localRuntime "mezz.jei:jei-${jei_mc_version}:${jei_version}"
+    compileOnly "curse.maven:curios-1037991:${curios_cf_file_id}"
+    localRuntime "curse.maven:curios-1037991:${curios_cf_file_id}"
+    compileOnly "curse.maven:jade-324717:${jade_cf_file_id}"
+    localRuntime "curse.maven:jade-324717:${jade_cf_file_id}"
 }
 
-task generateSources(type: Copy) {
-    from 'src/replaceme/java'
-    into "$buildDir/generated-src"
-    filter { line -> line.replaceAll('@MOD_VERSION@', '${project.version}') }
-}
-
-tasks.named('jar', Jar).configure {
-    from('/') {
-        include 'LICENSE'
-    }
-
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id,
-                'Specification-Vendor'    : "p3pp3rf1y",
-                'Specification-Version'   : '1', // We are version 1 of ourselves
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : "p3pp3rf1y",
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-}
-
-tasks.withType(ProcessResources).configureEach {
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
             minecraft_version   : minecraft_version, minecraft_version_range: minecraft_version_range,
             neo_version         : neo_version, neo_version_range: neo_version_range,
             loader_version_range: loader_version_range,
-            mod_id              : mod_id, mod_version: mod_version,
+            mod_id              : mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+            mod_issue_tracker_url: mod_issue_tracker_url, mod_logo_file: mod_logo_file, mod_credits: mod_credits,
+            mod_authors         : mod_authors, mod_description: mod_description, mod_display_url: mod_display_url,
             mod_full_version    : "${project.mod_version}.${getBuildNumber()}${getStable()}"
+
     ]
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties + [project: project]
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+// Include the output of "generateModMetadata" as an input directory for the build
+// this works with both building through Gradle and the IDE.
+sourceSets.main.resources.srcDir generateModMetadata
+// To avoid having to run "generateModMetadata" manually, make it run on every project reload
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes(["Specification-Title"     : project.mod_id,
+                    "Specification-Vendor"    : project.mod_id,
+                    "Specification-Version"   : "1",
+                    "Implementation-Title"    : project.name,
+                    "Implementation-Version"  : "${version}",
+                    "Implementation-Vendor"   : project.mod_id,
+                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")],)
     }
 }
 
@@ -150,15 +151,11 @@ static def getStable() {
     return ""
 }
 
-tasks.named('publish').configure {
-    dependsOn 'reobfJar'
-}
-
 publishing {
     repositories {
         maven {
-            name = "ReliquaryMaven"
-            url = uri("https://maven.pkg.github.com/P3pp3rF1y/Reliquary")
+            name = "GitHubPackages"
+            url = uri("${github_package_url}")
             credentials {
                 username = System.getenv("GITHUB_ACTOR")
                 password = System.getenv("GITHUB_TOKEN")
@@ -167,7 +164,7 @@ publishing {
     }
     publications {
         gpr(MavenPublication) {
-            artifactId = 'reliquary'
+            artifactId = mod_id
             from(components.java)
         }
     }
@@ -232,7 +229,7 @@ task generateChangelog {
             // Single commit log
             commitMessages = "git log -1 --pretty=%B".execute().text.split('\n\n')
             // Split by two newlines for each commit
-            logger.info("Single commit, ran git log command: git log -1 --pretty=%B and got ${commitMessages}");
+            logger.info("Single commit, ran git log command: git log -1 --pretty=%B and got ${commitMessages}")
         }
 
         def features = []
@@ -272,7 +269,6 @@ task curseforge(type: net.darkhax.curseforgegradle.TaskPublishCurseForge) {
     mainFile.changelogType = 'markdown'
     mainFile.changelog = { project.ext.changelog }
     mainFile.addModLoader('NeoForge')
-    mainFile.addModLoader('Forge')
     mainFile.releaseType = "${release_type}"
     "${release_versions}".split(',').each {
         mainFile.addGameVersion("${it}")
@@ -289,7 +285,7 @@ modrinth {
     versionType = "${release_type}"
     uploadFile = jar
     gameVersions = "${release_versions}".split(',').collect {e -> e}
-    loaders = ["forge", "neoforge"]
+    loaders = ["neoforge"]
     dependencies {
         optional.project "jei"
         optional.project "jade"
@@ -299,6 +295,7 @@ modrinth {
         project.ext.changelog
     }
 }
+
 tasks.modrinth {
     dependsOn(tasks.generateChangelog)
     onlyIf { !project.ext.changelog.isEmpty() }

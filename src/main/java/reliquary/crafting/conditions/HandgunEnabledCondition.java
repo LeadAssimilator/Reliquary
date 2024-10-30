@@ -1,21 +1,25 @@
 package reliquary.crafting.conditions;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import com.mojang.serialization.MapCodec;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import reliquary.reference.Config;
 
 public class HandgunEnabledCondition implements ICondition {
-	private static final ResourceLocation ID = new ResourceLocation(Reference.MOD_ID, "handgun_enabled");
-	public static final SimpleConditionSerializer<HandgunEnabledCondition> SERIALIZER = new SimpleConditionSerializer<>(ID, HandgunEnabledCondition::new);
-
-	@Override
-	public ResourceLocation getID() {
-		return ID;
-	}
+	private static final HandgunEnabledCondition INSTANCE = new HandgunEnabledCondition();
+	public static final MapCodec<HandgunEnabledCondition> CODEC = MapCodec.unit(INSTANCE).stable();
 
 	@Override
 	public boolean test(IContext context) {
-		return !Settings.COMMON.disable.disableHandgun.get();
+		return !Config.COMMON.disable.disableHandgun.get();
+	}
+
+	@Override
+	public MapCodec<? extends ICondition> codec() {
+		return CODEC;
+	}
+
+	@Override
+	public String toString() {
+		return "handgun_enabled";
 	}
 }

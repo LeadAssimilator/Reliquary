@@ -1,0 +1,37 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_catalyzing_gland": {
+      "conditions": {
+        "items": [
+          {
+            "items": "reliquary:catalyzing_gland"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "reliquary:eye_of_the_storm"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_catalyzing_gland"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "reliquary:eye_of_the_storm"
+    ]
+  }
+}

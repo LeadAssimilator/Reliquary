@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:infernal_claw"
+    },
+    {
+      "item": "reliquary:infernal_claw"
+    },
+    {
+      "item": "reliquary:infernal_claw"
+    },
+    {
+      "item": "reliquary:slime_pearl"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:infernal_claws"
+  }
+}

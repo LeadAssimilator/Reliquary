@@ -1,31 +1,27 @@
 package reliquary.items;
 
+import net.minecraft.core.Direction;
+import net.minecraft.core.Position;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ProjectileItem;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import reliquary.entities.HolyHandGrenadeEntity;
+import reliquary.entities.HolyHandGrenade;
 
-public class HolyHandGrenadeItem extends ItemBase {
+public class HolyHandGrenadeItem extends ItemBase implements ProjectileItem {
 
 	public HolyHandGrenadeItem() {
-		super(new Properties());
+		super(new Properties().rarity(Rarity.RARE));
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.RARE;
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
 	public boolean isFoil(ItemStack stack) {
 		return true;
 	}
@@ -43,11 +39,15 @@ public class HolyHandGrenadeItem extends ItemBase {
 		}
 
 		level.playSound(null, player.blockPosition(), SoundEvents.ARROW_SHOOT, SoundSource.NEUTRAL, 0.5F, 0.4F / (level.random.nextFloat() * 0.4F + 0.8F));
-		HolyHandGrenadeEntity grenade = new HolyHandGrenadeEntity(level, player, stack.getHoverName().getString());
+		HolyHandGrenade grenade = new HolyHandGrenade(level, player, stack.getHoverName().getString());
 		grenade.shootFromRotation(player, player.getXRot(), player.getYRot(), -20.0F, 0.7F, 1.0F);
 		level.addFreshEntity(grenade);
 
 		return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
 	}
 
+	@Override
+	public Projectile asProjectile(Level level, Position position, ItemStack itemStack, Direction direction) {
+		return new HolyHandGrenade(level, position);
+	}
 }

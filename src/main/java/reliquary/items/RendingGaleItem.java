@@ -1,23 +1,21 @@
 package reliquary.items;
 
 import com.google.common.collect.ImmutableMap;
+import com.mojang.serialization.Codec;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
@@ -30,28 +28,17 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
-import reliquary.items.util.FilteredItemHandlerProvider;
-import reliquary.items.util.FilteredItemStack;
-import reliquary.items.util.FilteredItemStackHandler;
+import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
+import reliquary.init.ModDataComponents;
 import reliquary.items.util.IScrollableItem;
-import reliquary.reference.Settings;
-import reliquary.util.LogHelper;
-import reliquary.util.NBTHelper;
+import reliquary.reference.Config;
 import reliquary.util.RegistryHelper;
 import reliquary.util.TooltipBuilder;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
-	private static final String COUNT_TAG = "count";
 	private static final int NO_DAMAGE_ELYTRA_TICKS = 3;
 
 	public RendingGaleItem() {
@@ -64,9 +51,8 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack rendingGale, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		tooltipBuilder.charge(this, ".tooltip2", getFeatherCount(rendingGale, true) / 100);
+	protected void addMoreInformation(ItemStack rendingGale, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
+		tooltipBuilder.charge(this, ".tooltip2", getFeatherCount(rendingGale) / 100);
 		tooltipBuilder.description(this, ".tooltip.controls");
 		if (isEnabled(rendingGale)) {
 			tooltipBuilder.absorbActive(Items.FEATHER.getName(new ItemStack(Items.FEATHER)).getString());
@@ -81,31 +67,31 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	private static int getChargeLimit() {
-		return Settings.COMMON.items.rendingGale.chargeLimit.get();
+		return Config.COMMON.items.rendingGale.chargeLimit.get();
 	}
 
 	public static int getChargeCost() {
-		return Settings.COMMON.items.rendingGale.castChargeCost.get();
+		return Config.COMMON.items.rendingGale.castChargeCost.get();
 	}
 
 	private static int getFeathersWorth() {
-		return Settings.COMMON.items.rendingGale.chargeFeatherWorth.get();
+		return Config.COMMON.items.rendingGale.chargeFeatherWorth.get();
 	}
 
 	private static int getBoltChargeCost() {
-		return Settings.COMMON.items.rendingGale.boltChargeCost.get();
+		return Config.COMMON.items.rendingGale.boltChargeCost.get();
 	}
 
 	private static int getBoltTargetRange() {
-		return Settings.COMMON.items.rendingGale.blockTargetRange.get();
+		return Config.COMMON.items.rendingGale.blockTargetRange.get();
 	}
 
 	private static int getRadialPushRadius() {
-		return Settings.COMMON.items.rendingGale.pushPullRadius.get();
+		return Config.COMMON.items.rendingGale.pushPullRadius.get();
 	}
 
-	private void attemptFlight(LivingEntity entityLiving) {
-		if (!(entityLiving instanceof Player player)) {
+	private void attemptFlight(LivingEntity livingEntity) {
+		if (!(livingEntity instanceof Player player)) {
 			return;
 		}
 
@@ -123,41 +109,29 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 		player.fallDistance = 0.0F;
 
 		if (player.isFallFlying()) {
-			preventElytraDamage(player);
-		}
-	}
-
-	private static final Field TICKS_ELYTRA_FLYING = ObfuscationReflectionHelper.findField(LivingEntity.class, "f_20937_");
-
-	@SuppressWarnings("java:S3011") //the reflection accessibility bypass here is the only way one can set the value
-	private static void preventElytraDamage(Player player) {
-		try {
-			TICKS_ELYTRA_FLYING.set(player, NO_DAMAGE_ELYTRA_TICKS);
-		}
-		catch (IllegalAccessException e) {
-			LogHelper.error("Error setting ticksElytraFlying on player ", e);
+			player.fallFlyTicks = NO_DAMAGE_ELYTRA_TICKS;
 		}
 	}
 
 	@Override
-	public void inventoryTick(ItemStack rendingGale, Level world, Entity entity, int slotNumber, boolean isSelected) {
-		if (world.isClientSide || !(entity instanceof Player player) || world.getGameTime() % 10 != 0) {
+	public void inventoryTick(ItemStack rendingGale, Level level, Entity entity, int slotNumber, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || level.getGameTime() % 10 != 0) {
 			return;
 		}
 
 		if (isEnabled(rendingGale)) {
 			int currentFeatherCharge = getFeatherCount(rendingGale);
 			consumeAndCharge(player, getChargeLimit() - currentFeatherCharge, getFeathersWorth(), Items.FEATHER, 16,
-					chargeToAdd -> setFeatherCount(rendingGale, currentFeatherCharge + chargeToAdd, !player.isUsingItem()));
+					chargeToAdd -> setFeatherCount(rendingGale, currentFeatherCharge + chargeToAdd));
 		}
 	}
 
 	public Mode getMode(ItemStack stack) {
-		return NBTHelper.getEnumConstant(stack, "mode", Mode::valueOf).orElse(Mode.FLIGHT);
+		return stack.getOrDefault(ModDataComponents.RENDING_GALE_MODE, Mode.FLIGHT);
 	}
 
 	private void setMode(ItemStack stack, Mode mode) {
-		NBTHelper.putString("mode", stack, mode.getSerializedName());
+		stack.set(ModDataComponents.RENDING_GALE_MODE, mode);
 	}
 
 	private void cycleMode(ItemStack stack, boolean isRaining, boolean next) {
@@ -179,15 +153,7 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	@Override
-	public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-		ArrayList<FilteredItemStack> filteredStacks = new ArrayList<>();
-		filteredStacks.add(new FilteredItemStack(Items.FEATHER, Settings.COMMON.items.rendingGale.chargeLimit.get(),
-				Settings.COMMON.items.rendingGale.chargeFeatherWorth.get(), false));
-		return new FilteredItemHandlerProvider(filteredStacks);
-	}
-
-	@Override
-	public int getUseDuration(ItemStack par1ItemStack) {
+	public int getUseDuration(ItemStack stack, LivingEntity livingEntity) {
 		return 6000;
 	}
 
@@ -197,10 +163,10 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack rendingGale = player.getItemInHand(hand);
 		if (player.isShiftKeyDown()) {
-			super.use(world, player, hand);
+			super.use(level, player, hand);
 		} else {
 			player.startUsingItem(hand);
 		}
@@ -213,7 +179,7 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 			return;
 		}
 
-		if (getFeatherCount(rendingGale, player.level().isClientSide) <= 0) {
+		if (getFeatherCount(rendingGale) <= 0) {
 			player.releaseUsingItem();
 			return;
 		}
@@ -232,7 +198,7 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 				doRadialPush(player.level(), player.getX(), player.getY(), player.getZ(), player, true);
 			}
 			if (!player.level().isClientSide) {
-				setFeatherCount(rendingGale, Math.max(0, getFeatherCount(rendingGale) - getChargeCost()), false);
+				setFeatherCount(rendingGale, Math.max(0, getFeatherCount(rendingGale) - getChargeCost()));
 			}
 		}
 	}
@@ -251,18 +217,10 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 				if (bolt != null) {
 					bolt.moveTo(pos.getX(), pos.getY(), pos.getZ());
 					player.level().addFreshEntity(bolt);
-					setFeatherCount(rendingGale, Math.max(0, getFeatherCount(rendingGale) - (getBoltChargeCost())), false);
+					setFeatherCount(rendingGale, Math.max(0, getFeatherCount(rendingGale) - (getBoltChargeCost())));
 				}
 			}
 		}
-	}
-
-	@Override
-	public void releaseUsing(ItemStack rendingGale, Level world, LivingEntity entityLiving, int timeLeft) {
-		if (world.isClientSide) {
-			return;
-		}
-		NBTHelper.putInt(COUNT_TAG, rendingGale, getFeatherCount(rendingGale));
 	}
 
 	public boolean hasFlightCharge(ItemStack stack) {
@@ -270,32 +228,17 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	public int getFeatherCount(ItemStack rendingGale) {
-		return getFeatherCount(rendingGale, false);
+		return getFromHandler(rendingGale, handler -> handler.getCountInSlot(0));
 	}
 
-	private int getFeatherCount(ItemStack rendingGale, boolean isClient) {
-		if (isClient) {
-			return NBTHelper.getInt(COUNT_TAG, rendingGale);
-		}
-
-		return rendingGale.getCapability(ForgeCapabilities.ITEM_HANDLER, null)
-				.filter(FilteredItemStackHandler.class::isInstance).map(handler -> ((FilteredItemStackHandler) handler).getTotalAmount(0)).orElse(0);
+	public void setFeatherCount(ItemStack stack, int featherCount) {
+		runOnHandler(stack, handler -> handler.setStackInSlot(0, new ItemStack(Items.FEATHER, featherCount)));
 	}
 
-	public void setFeatherCount(ItemStack stack, int featherCount, boolean updateNBT) {
-		stack.getCapability(ForgeCapabilities.ITEM_HANDLER, null).filter(FilteredItemStackHandler.class::isInstance)
-				.ifPresent(handler -> {
-					((FilteredItemStackHandler) handler).setTotalCount(0, featherCount);
-					if (updateNBT) {
-						NBTHelper.putInt(COUNT_TAG, stack, featherCount);
-					}
-				});
-	}
-
-	public void doRadialPush(Level world, double posX, double posY, double posZ, @Nullable Player player, boolean pull) {
+	public void doRadialPush(Level level, double posX, double posY, double posZ, @Nullable Player player, boolean pull) {
 		//push effect free at the moment, if you restore cost, remember to change this to getFeatherCount
-		spawnRadialHurricaneParticles(world, posX, posY, posZ, player, pull);
-		if (world.isClientSide) {
+		spawnRadialHurricaneParticles(level, posX, posY, posZ, player, pull);
+		if (level.isClientSide) {
 			return;
 		}
 
@@ -306,7 +249,7 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 		double upperY = posY + getRadialPushRadius() / 5D;
 		double upperZ = posZ + getRadialPushRadius();
 
-		List<Entity> entities = world.getEntitiesOfClass(Entity.class, new AABB(lowerX, lowerY, lowerZ, upperX, upperY, upperZ),
+		List<Entity> entities = level.getEntitiesOfClass(Entity.class, new AABB(lowerX, lowerY, lowerZ, upperX, upperY, upperZ),
 				e -> (e instanceof Mob || e instanceof Projectile));
 
 		for (Entity entity : entities) {
@@ -331,15 +274,15 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 
 	private boolean isBlacklistedEntity(Entity entity) {
 		String entityName = RegistryHelper.getRegistryName(entity).toString();
-		return isBlacklistedLivingEntity(entity, entityName) || Settings.COMMON.items.rendingGale.canPushProjectiles.get() && isBlacklistedProjectile(entity, entityName);
+		return isBlacklistedLivingEntity(entity, entityName) || Config.COMMON.items.rendingGale.canPushProjectiles.get() && isBlacklistedProjectile(entity, entityName);
 	}
 
 	private boolean isBlacklistedProjectile(Entity entity, String entityName) {
-		return entity instanceof Projectile && Settings.COMMON.items.rendingGale.pushableProjectilesBlacklist.get().contains(entityName);
+		return entity instanceof Projectile && Config.COMMON.items.rendingGale.pushableProjectilesBlacklist.get().contains(entityName);
 	}
 
 	private boolean isBlacklistedLivingEntity(Entity entity, String entityName) {
-		return entity instanceof Mob && Settings.COMMON.items.rendingGale.pushableEntitiesBlacklist.get().contains(entityName);
+		return entity instanceof Mob && Config.COMMON.items.rendingGale.pushableEntitiesBlacklist.get().contains(entityName);
 	}
 
 	private float getDistanceToEntity(double posX, double posY, double posZ, Entity entityIn) {
@@ -364,13 +307,13 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 		}
 	}
 
-	private void spawnRadialHurricaneParticles(Level world, double posX, double posY, double posZ, @Nullable Player player, boolean pull) {
+	private void spawnRadialHurricaneParticles(Level level, double posX, double posY, double posZ, @Nullable Player player, boolean pull) {
 		BlockParticleOption blockParticleData = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.SNOW_BLOCK.defaultBlockState());
 
 		//spawn a whole mess of particles every tick.
 		for (int i = 0; i < 3; ++i) {
-			float randX = world.random.nextFloat() - 0.5F;
-			float randZ = world.random.nextFloat() - 0.5F;
+			float randX = level.random.nextFloat() - 0.5F;
+			float randZ = level.random.nextFloat() - 0.5F;
 			float motX = randX * 10F;
 			float motZ = randZ * 10F;
 			if (pull) {
@@ -382,14 +325,14 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 
 			double posYAdjusted = player == null ? posY : (posY + player.getEyeHeight()) - (player.getBbHeight() / 2);
 
-			world.addParticle(blockParticleData, posX + randX, posYAdjusted, posZ + randZ, motX, 0.0D, motZ);
+			level.addParticle(blockParticleData, posX + randX, posYAdjusted, posZ + randZ, motX, 0.0D, motZ);
 		}
 	}
 
 	public int getFeatherCountClient(ItemStack rendingGale, Player player) {
-		int featherCount = getFeatherCount(rendingGale, true);
+		int featherCount = getFeatherCount(rendingGale);
 		Mode mode = getMode(rendingGale);
-		int ticksInUse = getUseDuration(rendingGale) - player.getUseItemRemainingTicks();
+		int ticksInUse = getUseDuration(rendingGale, player) - player.getUseItemRemainingTicks();
 		if (player.isUsingItem()) {
 			featherCount = Math.max(0, featherCount - (mode == Mode.BOLT ? getBoltChargeCost() * (ticksInUse / 8) : (getChargeCost() * ticksInUse)));
 		}
@@ -398,6 +341,9 @@ public class RendingGaleItem extends ToggleableItem implements IScrollableItem {
 
 	public enum Mode implements StringRepresentable {
 		FLIGHT, PUSH, PULL, BOLT;
+
+		public static final Codec<Mode> CODEC = StringRepresentable.fromEnum(Mode::values);
+		public static final StreamCodec<FriendlyByteBuf, Mode> STREAM_CODEC = NeoForgeStreamCodecs.enumCodec(Mode.class);
 
 		@Override
 		public String getSerializedName() {

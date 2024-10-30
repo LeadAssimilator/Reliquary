@@ -1,15 +1,15 @@
 package reliquary.data;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
 import reliquary.init.ModItems;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 
 public class EntityLootEnabledCondition implements LootItemCondition {
+	private static final EntityLootEnabledCondition INSTANCE = new EntityLootEnabledCondition();
+	public static final MapCodec<EntityLootEnabledCondition> CODEC = MapCodec.unit(() -> INSTANCE);
 
 	private EntityLootEnabledCondition() {
 	}
@@ -21,7 +21,7 @@ public class EntityLootEnabledCondition implements LootItemCondition {
 
 	@Override
 	public boolean test(LootContext lootContext) {
-		return Boolean.TRUE.equals(Settings.COMMON.mobDropsEnabled.get());
+		return Boolean.TRUE.equals(Config.COMMON.mobDropsEnabled.get());
 	}
 
 	public static Builder builder() {
@@ -31,18 +31,6 @@ public class EntityLootEnabledCondition implements LootItemCondition {
 	public static class Builder implements LootItemCondition.Builder {
 		@Override
 		public LootItemCondition build() {
-			return new EntityLootEnabledCondition();
-		}
-	}
-
-	public static class Serializer implements net.minecraft.world.level.storage.loot.Serializer<EntityLootEnabledCondition> {
-		@Override
-		public void serialize(JsonObject object, EntityLootEnabledCondition instance, JsonSerializationContext ctx) {
-			//nothing to serialize
-		}
-
-		@Override
-		public EntityLootEnabledCondition deserialize(JsonObject object, JsonDeserializationContext ctx) {
 			return new EntityLootEnabledCondition();
 		}
 	}

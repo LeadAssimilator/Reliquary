@@ -1,0 +1,24 @@
+{
+  "type": "reliquary:mob_charm",
+  "category": "misc",
+  "key": {
+    "F": {
+      "item": "reliquary:mob_charm_fragment"
+    },
+    "L": {
+      "tag": "c:leathers"
+    },
+    "S": {
+      "tag": "c:strings"
+    }
+  },
+  "pattern": [
+    "FLF",
+    "FSF",
+    "F F"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:mob_charm"
+  }
+}

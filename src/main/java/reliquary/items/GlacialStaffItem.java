@@ -1,56 +1,33 @@
 package reliquary.items;
 
+import com.google.common.collect.ImmutableSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import reliquary.util.NBTHelper;
-import reliquary.util.TooltipBuilder;
+import reliquary.init.ModDataComponents;
 
-import javax.annotation.Nullable;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 @SuppressWarnings("java:S110")
 public class GlacialStaffItem extends IceMagusRodItem {
-	private static final String SNOWBALLS_TAG = "snowballs";
-	private static final String BLOCK_LOCATIONS_TAG = "blockLocations";
-
 	public GlacialStaffItem() {
 		super();
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack staff, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		tooltipBuilder.charge(this, ".tooltip2", NBTHelper.getInt(SNOWBALLS_TAG, staff));
-		if (isEnabled(staff)) {
-			tooltipBuilder.absorbActive(Items.SNOWBALL.getName(new ItemStack(Items.SNOWBALL)).getString());
-		} else {
-			tooltipBuilder.absorb();
-		}
-	}
-
-	@Override
 	public boolean onLeftClickEntity(ItemStack stack, Player player, Entity e) {
-		if (e instanceof LivingEntity livingBase && NBTHelper.getInt(SNOWBALLS_TAG, stack) >= getSnowballCost()) {
+		if (e instanceof LivingEntity livingBase && getSnowballs(stack) >= getSnowballCost()) {
 			MobEffectInstance slow = new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 0);
 
 			//if the creature is slowed already, refresh the duration and increase the amplifier by 1.
@@ -63,45 +40,41 @@ public class GlacialStaffItem extends IceMagusRodItem {
 
 			((LivingEntity) e).addEffect(slow);
 			e.hurt(player.damageSources().playerAttack(player), slow.getAmplifier());
-			NBTHelper.putInt(SNOWBALLS_TAG, stack, NBTHelper.getInt(SNOWBALLS_TAG, stack) - getSnowballCost());
+			setSnowballs(stack, getSnowballs(stack) - getSnowballCost());
 		}
 		return super.onLeftClickEntity(stack, player, e);
 	}
 
 	@Override
-	public void inventoryTick(ItemStack staff, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		super.inventoryTick(staff, world, entity, itemSlot, isSelected);
+	public void inventoryTick(ItemStack staff, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		super.inventoryTick(staff, level, entity, itemSlot, isSelected);
 
-		if (world.getGameTime() % 2 != 0) {
-			return;
-		}
-
-		if (!(entity instanceof Player player)) {
+		if (level.isClientSide() || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % 2 != 0) {
 			return;
 		}
 
 		if (isEnabled(staff)) {
-			freezeBlocks(staff, world, player);
+			freezeBlocks(staff, level, player);
 		}
-		meltBlocks(staff, world, player);
+		meltBlocks(staff, level, player);
 	}
 
-	private void freezeBlocks(ItemStack staff, Level world, Player player) {
+	private void freezeBlocks(ItemStack staff, Level level, Player player) {
 		BlockPos playerPos = player.blockPosition();
 		BlockPos.betweenClosed(playerPos.offset(-2, -1, -2), playerPos.offset(2, -1, 2))
 				.forEach(pos -> {
 					if (Math.abs(playerPos.getX() - pos.getX()) == 2 && Math.abs(playerPos.getZ() - pos.getZ()) == 2) {
 						return;
 					}
-					doFreezeCheck(staff, pos, world);
+					doFreezeCheck(staff, pos.immutable(), level);
 				});
 	}
 
-	private void meltBlocks(ItemStack staff, Level world, Player player) {
-		if (!world.isClientSide) {
+	private void meltBlocks(ItemStack staff, Level level, Player player) {
+		if (!level.isClientSide) {
 			BlockPos playerPos = player.blockPosition();
 			for (BlockPos pos : getBlockLocations(staff)) {
-				if (!world.isLoaded(pos)) {
+				if (!level.isLoaded(pos)) {
 					continue;
 				}
 
@@ -113,106 +86,74 @@ public class GlacialStaffItem extends IceMagusRodItem {
 					continue;
 				}
 
-				doThawCheck(staff, pos, world);
+				doThawCheck(staff, pos, level);
 			}
 		}
 	}
 
 	private Set<BlockPos> getBlockLocations(ItemStack stack) {
-		CompoundTag tagCompound = stack.getTag();
-		if (tagCompound == null) {
-			tagCompound = new CompoundTag();
-		}
-		Set<BlockPos> locations = new HashSet<>();
-
-		tagCompound.getList(BLOCK_LOCATIONS_TAG, Tag.TAG_LONG)
-				.forEach(nbt -> locations.add(BlockPos.of(((LongTag) nbt).getAsLong())));
-		return locations;
+		return stack.getOrDefault(ModDataComponents.FROZEN_POSITIONS, new HashSet<>());
 	}
 
-	private void doFreezeCheck(ItemStack stack, BlockPos pos, Level world) {
-		BlockState blockState = world.getBlockState(pos);
-		if (blockState.getBlock() == Blocks.WATER && blockState.getValue(LiquidBlock.LEVEL) == 0 && world.isEmptyBlock(pos.above())) {
+	private void doFreezeCheck(ItemStack stack, BlockPos pos, Level level) {
+		BlockState blockState = level.getBlockState(pos);
+		if (blockState.getBlock() == Blocks.WATER && blockState.getValue(LiquidBlock.LEVEL) == 0 && level.isEmptyBlock(pos.above())) {
 			addFrozenBlockToList(stack, pos);
-			world.setBlockAndUpdate(pos, Blocks.PACKED_ICE.defaultBlockState());
-			for (int particleNum = world.random.nextInt(3); particleNum < 2; ++particleNum) {
-				float xVel = world.random.nextFloat();
-				float yVel = world.random.nextFloat() + 0.5F;
-				float zVel = world.random.nextFloat();
-				world.addParticle(ICE_PARTICLE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0.75F, 0.75F, 1.0F);
+			level.setBlockAndUpdate(pos, Blocks.PACKED_ICE.defaultBlockState());
+			for (int particleNum = level.random.nextInt(3); particleNum < 2; ++particleNum) {
+				float xVel = level.random.nextFloat();
+				float yVel = level.random.nextFloat() + 0.5F;
+				float zVel = level.random.nextFloat();
+				level.addParticle(ICE_PARTICLE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0.75F, 0.75F, 1.0F);
 			}
 		} else if (blockState.getBlock() == Blocks.LAVA && blockState.getValue(LiquidBlock.LEVEL) == 0) {
 			addFrozenBlockToList(stack, pos);
-			world.setBlockAndUpdate(pos, Blocks.OBSIDIAN.defaultBlockState());
-			for (int particleNum = world.random.nextInt(3); particleNum < 2; ++particleNum) {
-				float xVel = world.random.nextFloat();
-				float yVel = world.random.nextFloat() + 0.5F;
-				float zVel = world.random.nextFloat();
-				world.addParticle(world.random.nextInt(3) == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0.0D, 0.2D, 0.0D);
+			level.setBlockAndUpdate(pos, Blocks.OBSIDIAN.defaultBlockState());
+			for (int particleNum = level.random.nextInt(3); particleNum < 2; ++particleNum) {
+				float xVel = level.random.nextFloat();
+				float yVel = level.random.nextFloat() + 0.5F;
+				float zVel = level.random.nextFloat();
+				level.addParticle(level.random.nextInt(3) == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0.0D, 0.2D, 0.0D);
 			}
 		}
 	}
 
-	private void doThawCheck(ItemStack stack, BlockPos pos, Level world) {
-		BlockState blockState = world.getBlockState(pos);
+	private void doThawCheck(ItemStack stack, BlockPos pos, Level level) {
+		BlockState blockState = level.getBlockState(pos);
 		if (blockState == Blocks.PACKED_ICE.defaultBlockState()) {
 			if (removeFrozenBlockFromList(stack, pos)) {
-				world.setBlockAndUpdate(pos, Blocks.WATER.defaultBlockState());
-				for (int particleNum = world.random.nextInt(3); particleNum < 2; ++particleNum) {
-					float xVel = world.random.nextFloat();
-					float yVel = world.random.nextFloat() + 0.5F;
-					float zVel = world.random.nextFloat();
-					world.addParticle(world.random.nextInt(3) == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0.0D, 0.2D, 0.0D);
+				level.setBlockAndUpdate(pos, Blocks.WATER.defaultBlockState());
+				for (int particleNum = level.random.nextInt(3); particleNum < 2; ++particleNum) {
+					float xVel = level.random.nextFloat();
+					float yVel = level.random.nextFloat() + 0.5F;
+					float zVel = level.random.nextFloat();
+					level.addParticle(level.random.nextInt(3) == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0.0D, 0.2D, 0.0D);
 				}
 			}
 		} else if (blockState == Blocks.OBSIDIAN.defaultBlockState() && removeFrozenBlockFromList(stack, pos)) {
-			world.setBlockAndUpdate(pos, Blocks.LAVA.defaultBlockState());
-			for (int particleNum = world.random.nextInt(3); particleNum < 2; ++particleNum) {
-				float xVel = world.random.nextFloat();
-				float yVel = world.random.nextFloat() + 0.5F;
-				float zVel = world.random.nextFloat();
-				world.addParticle(DustParticleOptions.REDSTONE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0F, 0.2F, 0F);
+			level.setBlockAndUpdate(pos, Blocks.LAVA.defaultBlockState());
+			for (int particleNum = level.random.nextInt(3); particleNum < 2; ++particleNum) {
+				float xVel = level.random.nextFloat();
+				float yVel = level.random.nextFloat() + 0.5F;
+				float zVel = level.random.nextFloat();
+				level.addParticle(DustParticleOptions.REDSTONE, pos.getX() + xVel, pos.getY() + yVel, pos.getZ() + zVel, 0F, 0.2F, 0F);
 			}
 		}
 	}
 
 	private void addFrozenBlockToList(ItemStack stack, BlockPos pos) {
-		CompoundTag tagCompound = stack.getTag();
-		if (tagCompound == null) {
-			tagCompound = new CompoundTag();
-		}
+		HashSet<BlockPos> frozenPositions = new HashSet<>(getBlockLocations(stack));
+		frozenPositions.add(pos);
 
-		ListTag tagList = tagCompound.getList(BLOCK_LOCATIONS_TAG, Tag.TAG_LONG);
-		tagList.add(LongTag.valueOf(pos.asLong()));
-
-		tagCompound.put(BLOCK_LOCATIONS_TAG, tagList);
-
-		stack.setTag(tagCompound);
+		stack.set(ModDataComponents.FROZEN_POSITIONS, ImmutableSet.copyOf(frozenPositions));
 	}
 
 	private boolean removeFrozenBlockFromList(ItemStack stack, BlockPos pos) {
-		CompoundTag tagCompound = stack.getTag();
-		if (tagCompound == null) {
-			tagCompound = new CompoundTag();
+		HashSet<BlockPos> frozenPositions = new HashSet<>(getBlockLocations(stack));
+		if (frozenPositions.remove(pos)) {
+			stack.set(ModDataComponents.FROZEN_POSITIONS, ImmutableSet.copyOf(frozenPositions));
+			return true;
 		}
-
-		ListTag tagList = tagCompound.getList(BLOCK_LOCATIONS_TAG, Tag.TAG_LONG);
-
-		Iterator<Tag> it = tagList.iterator();
-
-		boolean removedBlock = false;
-		while (it.hasNext()) {
-			LongTag nbtPos = (LongTag) it.next();
-			if (nbtPos.getAsLong() == pos.asLong()) {
-				it.remove();
-				removedBlock = true;
-			}
-		}
-
-		if (removedBlock) {
-			tagCompound.put(BLOCK_LOCATIONS_TAG, tagList);
-			stack.setTag(tagCompound);
-		}
-		return removedBlock;
+		return false;
 	}
 }

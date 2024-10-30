@@ -1,21 +1,25 @@
 package reliquary.items;
 
+import net.minecraft.core.Direction;
+import net.minecraft.core.Position;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ProjectileItem;
 import net.minecraft.world.level.Level;
-import reliquary.entities.potion.AphroditePotionEntity;
+import reliquary.entities.potion.AphroditePotion;
 import reliquary.init.ModItems;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 
-public class AphroditePotionItem extends ItemBase {
+public class AphroditePotionItem extends ItemBase implements ProjectileItem {
 
 	public AphroditePotionItem() {
-		super(new Properties(), Settings.COMMON.disable.disablePotions);
+		super(new Properties(), Config.COMMON.disable.disablePotions);
 	}
 
 	@Override
@@ -29,18 +33,23 @@ public class AphroditePotionItem extends ItemBase {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack stack = player.getItemInHand(hand);
-		if (world.isClientSide) {
+		if (level.isClientSide) {
 			return new InteractionResultHolder<>(InteractionResult.PASS, stack);
 		}
 		if (!player.isCreative()) {
 			stack.shrink(1);
 		}
-		world.playSound(null, player.blockPosition(), SoundEvents.DISPENSER_LAUNCH, SoundSource.NEUTRAL, 0.5F, 0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F));
-		AphroditePotionEntity aphroditePotion = new AphroditePotionEntity(world, player);
+		level.playSound(null, player.blockPosition(), SoundEvents.DISPENSER_LAUNCH, SoundSource.NEUTRAL, 0.5F, 0.4F / (level.getRandom().nextFloat() * 0.4F + 0.8F));
+		AphroditePotion aphroditePotion = new AphroditePotion(level, player);
 		aphroditePotion.shootFromRotation(player, player.getXRot(), player.getYRot(), -20.0F, 0.7F, 1.0F);
-		world.addFreshEntity(aphroditePotion);
+		level.addFreshEntity(aphroditePotion);
 		return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
+	}
+
+	@Override
+	public Projectile asProjectile(Level level, Position position, ItemStack itemStack, Direction direction) {
+		return new AphroditePotion(level, position);
 	}
 }

@@ -2,8 +2,11 @@ package reliquary.data;
 
 import net.minecraft.advancements.critereon.EntityPredicate;
 import net.minecraft.advancements.critereon.NbtPredicate;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.loot.LootTableSubProvider;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
@@ -12,10 +15,12 @@ import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.entries.LootItem;
 import net.minecraft.world.level.storage.loot.entries.LootPoolEntryContainer;
+import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemEntityPropertyCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemKilledByPlayerCondition;
+import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceWithEnchantedBonusCondition;
+import reliquary.Reliquary;
 import reliquary.init.ModItems;
-import reliquary.reference.Reference;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,34 +29,44 @@ import java.util.function.BiConsumer;
 public class EntityLootInjectSubProvider implements LootTableSubProvider {
 
 	private static final String INJECT_FOLDER = "inject/";
-	protected static final Map<ResourceLocation, ResourceLocation> LOOT_INJECTS = new HashMap<>();
-	private static ResourceLocation registerLootInject(ResourceLocation vanillaLootTable) {
-		return LOOT_INJECTS.computeIfAbsent(vanillaLootTable, k -> new ResourceLocation(Reference.MOD_ID, INJECT_FOLDER + vanillaLootTable.getPath()));
+	protected static final Map<ResourceKey<LootTable>, ResourceKey<LootTable>> LOOT_INJECTS = new HashMap<>();
+
+	public static final ResourceKey<LootTable> BAT = createInjectLootTableRegistryKey(EntityType.BAT.getDefaultLootTable());
+	public static final ResourceKey<LootTable> BLAZE = createInjectLootTableRegistryKey(EntityType.BLAZE.getDefaultLootTable());
+	public static final ResourceKey<LootTable> CAVE_SPIDER = createInjectLootTableRegistryKey(EntityType.CAVE_SPIDER.getDefaultLootTable());
+	public static final ResourceKey<LootTable> CREEPER = createInjectLootTableRegistryKey(EntityType.CREEPER.getDefaultLootTable());
+	public static final ResourceKey<LootTable> ENDERMAN = createInjectLootTableRegistryKey(EntityType.ENDERMAN.getDefaultLootTable());
+	public static final ResourceKey<LootTable> GHAST = createInjectLootTableRegistryKey(EntityType.GHAST.getDefaultLootTable());
+	public static final ResourceKey<LootTable> GUARDIAN = createInjectLootTableRegistryKey(EntityType.GUARDIAN.getDefaultLootTable());
+	public static final ResourceKey<LootTable> HUSK = createInjectLootTableRegistryKey(EntityType.HUSK.getDefaultLootTable());
+	public static final ResourceKey<LootTable> MAGMA_CUBE = createInjectLootTableRegistryKey(EntityType.MAGMA_CUBE.getDefaultLootTable());
+	public static final ResourceKey<LootTable> SKELETON = createInjectLootTableRegistryKey(EntityType.SKELETON.getDefaultLootTable());
+	public static final ResourceKey<LootTable> SNOW_GOLEM = createInjectLootTableRegistryKey(EntityType.SNOW_GOLEM.getDefaultLootTable());
+	public static final ResourceKey<LootTable> SLIME = createInjectLootTableRegistryKey(EntityType.SLIME.getDefaultLootTable());
+	public static final ResourceKey<LootTable> SPIDER = createInjectLootTableRegistryKey(EntityType.SPIDER.getDefaultLootTable());
+	public static final ResourceKey<LootTable> SQUID = createInjectLootTableRegistryKey(EntityType.SQUID.getDefaultLootTable());
+	public static final ResourceKey<LootTable> STRAY = createInjectLootTableRegistryKey(EntityType.STRAY.getDefaultLootTable());
+	public static final ResourceKey<LootTable> WITCH = createInjectLootTableRegistryKey(EntityType.WITCH.getDefaultLootTable());
+	public static final ResourceKey<LootTable> WITHER_SKELETON = createInjectLootTableRegistryKey(EntityType.WITHER_SKELETON.getDefaultLootTable());
+	public static final ResourceKey<LootTable> ZOMBIE = createInjectLootTableRegistryKey(EntityType.ZOMBIE.getDefaultLootTable());
+	public static final ResourceKey<LootTable> ZOMBIE_VILLAGER = createInjectLootTableRegistryKey(EntityType.ZOMBIE_VILLAGER.getDefaultLootTable());
+	public static final ResourceKey<LootTable> ZOMBIFIED_PIGLIN = createInjectLootTableRegistryKey(EntityType.ZOMBIFIED_PIGLIN.getDefaultLootTable());
+	private final HolderLookup.Provider registries;
+
+	private static ResourceKey<LootTable> createInjectLootTableRegistryKey(ResourceKey<LootTable> vanillaLootTable) {
+		ResourceLocation location = Reliquary.getRL(INJECT_FOLDER + vanillaLootTable.location().getPath());
+		ResourceKey<LootTable> injectLootTable = ResourceKey.create(Registries.LOOT_TABLE, location);
+		LOOT_INJECTS.put(vanillaLootTable, injectLootTable);
+		return injectLootTable;
 	}
 
-	public static final ResourceLocation BAT = registerLootInject(EntityType.BAT.getDefaultLootTable());
-	public static final ResourceLocation BLAZE = registerLootInject(EntityType.BLAZE.getDefaultLootTable());
-	public static final ResourceLocation CAVE_SPIDER = registerLootInject(EntityType.CAVE_SPIDER.getDefaultLootTable());
-	public static final ResourceLocation CREEPER = registerLootInject(EntityType.CREEPER.getDefaultLootTable());
-	public static final ResourceLocation ENDERMAN = registerLootInject(EntityType.ENDERMAN.getDefaultLootTable());
-	public static final ResourceLocation GHAST = registerLootInject(EntityType.GHAST.getDefaultLootTable());
-	public static final ResourceLocation GUARDIAN = registerLootInject(EntityType.GUARDIAN.getDefaultLootTable());
-	public static final ResourceLocation HUSK = registerLootInject(EntityType.HUSK.getDefaultLootTable());
-	public static final ResourceLocation MAGMA_CUBE = registerLootInject(EntityType.MAGMA_CUBE.getDefaultLootTable());
-	public static final ResourceLocation SKELETON = registerLootInject(EntityType.SKELETON.getDefaultLootTable());
-	public static final ResourceLocation SNOW_GOLEM = registerLootInject(EntityType.SNOW_GOLEM.getDefaultLootTable());
-	public static final ResourceLocation SLIME = registerLootInject(EntityType.SLIME.getDefaultLootTable());
-	public static final ResourceLocation SPIDER = registerLootInject(EntityType.SPIDER.getDefaultLootTable());
-	public static final ResourceLocation SQUID = registerLootInject(EntityType.SQUID.getDefaultLootTable());
-	public static final ResourceLocation STRAY = registerLootInject(EntityType.STRAY.getDefaultLootTable());
-	public static final ResourceLocation WITCH = registerLootInject(EntityType.WITCH.getDefaultLootTable());
-	public static final ResourceLocation WITHER_SKELETON = registerLootInject(EntityType.WITHER_SKELETON.getDefaultLootTable());
-	public static final ResourceLocation ZOMBIE = registerLootInject(EntityType.ZOMBIE.getDefaultLootTable());
-	public static final ResourceLocation ZOMBIE_VILLAGER = registerLootInject(EntityType.ZOMBIE_VILLAGER.getDefaultLootTable());
-	public static final ResourceLocation ZOMBIFIED_PIGLIN = registerLootInject(EntityType.ZOMBIFIED_PIGLIN.getDefaultLootTable());
+	public EntityLootInjectSubProvider(HolderLookup.Provider registries) {
+		this.registries = registries;
+	}
 
 	@Override
-	public void generate(BiConsumer<ResourceLocation, LootTable.Builder> tables) {
+	public void generate(BiConsumer<ResourceKey<LootTable>, LootTable.Builder> tables) {
+
 		tables.accept(BAT, getEntityLootTable(0.02f, 0.03f, 0.1f,
 				getItemLootEntry(ModItems.BAT_WING.get(), 1)));
 
@@ -63,13 +78,13 @@ public class EntityLootInjectSubProvider implements LootTableSubProvider {
 
 		CompoundTag poweredTag = new CompoundTag();
 		poweredTag.putBoolean("powered", true);
-		tables.accept(CREEPER, getEntityLootTable(0.02f, 0.03f, 0.1f,
-				getItemLootEntry(ModItems.CATALYZING_GLAND.get(), 1))
-				.withPool(LootPool.lootPool().name("powered_creeper").add(LootItem.lootTableItem(ModItems.EYE_OF_THE_STORM.get()))
-						.when(LootItemKilledByPlayerCondition.killedByPlayer())
-						.when(LootItemEntityPropertyCondition.hasProperties(LootContext.EntityTarget.THIS, new EntityPredicate.Builder().nbt(new NbtPredicate(poweredTag))))
-						.when(RandomChanceLootingSeveringCondition.randomChanceLootingSevering(0.03f, 0.05f, 0.15f))
-				));
+		tables.accept(CREEPER, addLootPools(
+						getEntityLootTable(0.02f, 0.03f, 0.1f, getItemLootEntry(ModItems.CATALYZING_GLAND.get(), 1)),
+						"reliquary_powered_creeper_", 0.03f, 0.05f, 0.15f,
+						getItemLootEntry(ModItems.EYE_OF_THE_STORM.get(), 1),
+						LootItemEntityPropertyCondition.hasProperties(LootContext.EntityTarget.THIS, new EntityPredicate.Builder().nbt(new NbtPredicate(poweredTag)))
+				)
+		);
 
 		tables.accept(ENDERMAN, getEntityLootTable(0.02f, 0.03f, 0.1f,
 				getItemLootEntry(ModItems.NEBULOUS_HEART.get(), 1)));
@@ -124,13 +139,29 @@ public class EntityLootInjectSubProvider implements LootTableSubProvider {
 		return LootItem.lootTableItem(item).setWeight(weight);
 	}
 
-	private static LootTable.Builder getEntityLootTable(float baseChance, float lootingMultiplier, float severingMultiplier, LootPoolEntryContainer.Builder<?>... entries) {
-		LootPool.Builder pool = LootPool.lootPool().name("main");
-		for (LootPoolEntryContainer.Builder<?> entry : entries) {
-			pool.add(entry);
+	private LootTable.Builder getEntityLootTable(float baseChance, float perLevelLooting, float perLevelSevering, LootPoolEntryContainer.Builder<?> entry, LootItemCondition.Builder... extraConditions) {
+		LootTable.Builder lootTableBuilder = LootTable.lootTable();
+
+		return addLootPools(lootTableBuilder, "reliquary_", baseChance, perLevelLooting, perLevelSevering, entry, extraConditions);
+	}
+
+	private LootTable.Builder addLootPools(LootTable.Builder lootTableBuilder, String lootPoolPrefix, float baseChance, float perLevelLooting, float perLevelSevering, LootPoolEntryContainer.Builder<?> entry, LootItemCondition.Builder... extraConditions) {
+		LootPool.Builder lootingPool = LootPool.lootPool().name(lootPoolPrefix + "looting");
+		lootingPool.add(entry);
+		lootingPool.when(LootItemKilledByPlayerCondition.killedByPlayer());
+		lootingPool.when(LootItemRandomChanceWithEnchantedBonusCondition.randomChanceAndLootingBoost(registries, baseChance, perLevelLooting));
+		for (LootItemCondition.Builder extraCondition : extraConditions) {
+			lootingPool.when(extraCondition);
 		}
-		pool.when(LootItemKilledByPlayerCondition.killedByPlayer());
-		pool.when(RandomChanceLootingSeveringCondition.randomChanceLootingSevering(baseChance, lootingMultiplier, severingMultiplier));
-		return LootTable.lootTable().withPool(pool);
+
+		LootPool.Builder severingPool = LootPool.lootPool().name(lootPoolPrefix + "severing");
+		severingPool.add(entry);
+		severingPool.when(LootItemKilledByPlayerCondition.killedByPlayer());
+		severingPool.when(LootItemRandomChanceWithSeveringBonusCondition.randomChanceAndSeveringBoost(registries, baseChance, perLevelSevering));
+		for (LootItemCondition.Builder extraCondition : extraConditions) {
+			severingPool.when(extraCondition);
+		}
+
+		return lootTableBuilder.withPool(lootingPool).withPool(severingPool);
 	}
 }

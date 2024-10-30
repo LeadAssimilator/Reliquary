@@ -69,7 +69,7 @@ public class MobCharmBeltMenu extends AbstractContainerMenu {
 		ItemStack copiedStack = ItemStack.EMPTY;
 		Slot slot = slots.get(index);
 
-		if (slot != null && slot.hasItem()) {
+		if (slot.hasItem()) {
 			ItemStack originalStack = slot.getItem();
 			copiedStack = originalStack.copy();
 

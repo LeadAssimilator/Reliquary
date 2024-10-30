@@ -1,10 +1,8 @@
 package reliquary.client.gui.components;
 
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.gui.GuiGraphics;
+import org.joml.Matrix4f;
 
 public abstract class Component {
 	public int getPadding() {
@@ -33,24 +31,19 @@ public abstract class Component {
 
 	public abstract void renderInternal(GuiGraphics guiGraphics, int x, int y);
 
-	protected void blit(int x, int y, int textureX, int textureY, int width, int height) {
-		blit(x, y, textureX, textureY, width, height, 256, 256);
-	}
-
 	@SuppressWarnings("java:S107")
-	protected void blit(int x, int y, int textureX, int textureY, int width, int height, float textureWidth, float textureHeight) {
+	protected void blit(GuiGraphics guiGraphics, int x, int y, int textureX, int textureY, int width, int height, float textureWidth, float textureHeight) {
 		float minU = textureX / textureWidth;
 		float maxU = (textureX + width) / textureWidth;
 		float minV = textureY / textureHeight;
 		float maxV = (textureY + height) / textureHeight;
 
-		Tesselator tessellator = Tesselator.getInstance();
-		BufferBuilder buffer = tessellator.getBuilder();
-		buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-		buffer.vertex(x, (double) y + height, 0).uv(minU, maxV).endVertex();
-		buffer.vertex((double) x + width, (double) y + height, 0).uv(maxU, maxV).endVertex();
-		buffer.vertex((double) x + width, y, 0).uv(maxU, minV).endVertex();
-		buffer.vertex(x, y, 0).uv(minU, minV).endVertex();
-		tessellator.end();
+		BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+		Matrix4f matrix4f = guiGraphics.pose().last().pose();
+		buffer.addVertex(matrix4f, x, y + height, 0).setUv(minU, maxV);
+		buffer.addVertex(matrix4f, x + width, y + height, 0).setUv(maxU, maxV);
+		buffer.addVertex(matrix4f, x + width, y, 0).setUv(maxU, minV);
+		buffer.addVertex(matrix4f, x, y, 0).setUv(minU, minV);
+		BufferUploader.drawWithShader(buffer.buildOrThrow());
 	}
 }

@@ -8,14 +8,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import reliquary.entities.KrakenSlimeEntity;
+import reliquary.entities.KrakenSlime;
 
 public class SerpentStaffItem extends ItemBase {
 	public SerpentStaffItem() {
@@ -28,13 +27,12 @@ public class SerpentStaffItem extends ItemBase {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
 	public boolean isFoil(ItemStack stack) {
 		return true;
 	}
 
 	@Override
-	public UseAnim getUseAnimation(ItemStack par1ItemStack) {
+	public UseAnim getUseAnimation(ItemStack stack) {
 		return UseAnim.BLOCK;
 	}
 
@@ -50,15 +48,15 @@ public class SerpentStaffItem extends ItemBase {
 	private void shootKrakenSlime(ItemStack serpentStaff, Player player) {
 		player.level().playSound(null, player.blockPosition(), SoundEvents.ARROW_SHOOT, SoundSource.NEUTRAL, 0.5F, 0.4F / (player.level().random.nextFloat() * 0.4F + 0.8F));
 
-		KrakenSlimeEntity krakenSlime = new KrakenSlimeEntity(player.level(), player);
+		KrakenSlime krakenSlime = new KrakenSlime(player.level(), player);
 		krakenSlime.shootFromRotation(player, player.getXRot(), player.getYRot(), 0F, 1.5F, 1.0F);
 		player.level().addFreshEntity(krakenSlime);
-		serpentStaff.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(p.getUsedItemHand()));
+		serpentStaff.hurtAndBreak(1, player, player.getUsedItemHand() == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
 	}
 
 	@Override
-	public void releaseUsing(ItemStack serpentStaff, Level worldIn, LivingEntity entityLiving, int timeLeft) {
-		if (!entityLiving.level().isClientSide && timeLeft + 2 >= serpentStaff.getUseDuration() && entityLiving instanceof Player player) {
+	public void releaseUsing(ItemStack serpentStaff, Level level, LivingEntity livingEntity, int timeLeft) {
+		if (!livingEntity.level().isClientSide && timeLeft + 2 >= serpentStaff.getUseDuration(livingEntity) && livingEntity instanceof Player player) {
 			shootKrakenSlime(serpentStaff, player);
 		}
 	}
@@ -69,18 +67,18 @@ public class SerpentStaffItem extends ItemBase {
 		int drain = player.level().random.nextInt(4);
 		if (entity.hurt(player.damageSources().playerAttack(player), drain)) {
 			player.heal(drain);
-			stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(p.getUsedItemHand()));
+			stack.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
 		}
 		return false;
 	}
 
 	@Override
-	public int getUseDuration(ItemStack stack) {
+	public int getUseDuration(ItemStack stack, LivingEntity livingEntity) {
 		return 11;
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		player.startUsingItem(hand);
 		return new InteractionResultHolder<>(InteractionResult.SUCCESS, player.getItemInHand(hand));
 	}

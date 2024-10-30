@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:zombie_heart"
+    },
+    {
+      "item": "reliquary:zombie_heart"
+    }
+  ],
+  "result": {
+    "count": 6,
+    "id": "minecraft:gold_nugget"
+  }
+}

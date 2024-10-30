@@ -1,0 +1,30 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:catalyzing_gland"
+    },
+    {
+      "item": "reliquary:catalyzing_gland"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    },
+    {
+      "tag": "c:gunpowders"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "id": "reliquary:bullets/storm_bullet"
+  }
+}

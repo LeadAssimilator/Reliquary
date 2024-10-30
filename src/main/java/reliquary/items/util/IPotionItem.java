@@ -1,10 +1,8 @@
 package reliquary.items.util;
 
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
-
-import java.util.List;
+import net.minecraft.world.item.alchemy.PotionContents;
 
 public interface IPotionItem {
-	List<MobEffectInstance> getEffects(ItemStack stack);
+	PotionContents getPotionContents(ItemStack stack);
 }

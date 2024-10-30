@@ -12,16 +12,12 @@ import java.util.Optional;
 public class WorldHelper {
 	private WorldHelper() {}
 
-	public static Optional<BlockEntity> getBlockEntity(@Nullable BlockGetter world, BlockPos pos) {
-		return getBlockEntity(world, pos, BlockEntity.class);
-	}
-
-	public static <T> Optional<T> getBlockEntity(@Nullable BlockGetter world, BlockPos pos, Class<T> teClass) {
-		if (world == null) {
+	public static <T> Optional<T> getBlockEntity(@Nullable BlockGetter level, BlockPos pos, Class<T> teClass) {
+		if (level == null) {
 			return Optional.empty();
 		}
 
-		BlockEntity te = world.getBlockEntity(pos);
+		BlockEntity te = level.getBlockEntity(pos);
 
 		if (teClass.isInstance(te)) {
 			return Optional.of(teClass.cast(te));
@@ -30,13 +26,13 @@ public class WorldHelper {
 		return Optional.empty();
 	}
 
-	private static void notifyBlockUpdate(@Nullable Level world, BlockPos pos) {
-		if (world == null) {
+	private static void notifyBlockUpdate(@Nullable Level level, BlockPos pos) {
+		if (level == null) {
 			return;
 		}
 
-		BlockState state = world.getBlockState(pos);
-		world.sendBlockUpdated(pos, state, state, 3);
+		BlockState state = level.getBlockState(pos);
+		level.sendBlockUpdated(pos, state, state, 3);
 	}
 
 	public static void notifyBlockUpdate(BlockEntity tile) {

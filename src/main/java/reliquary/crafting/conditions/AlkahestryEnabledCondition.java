@@ -1,21 +1,25 @@
 package reliquary.crafting.conditions;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import com.mojang.serialization.MapCodec;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import reliquary.reference.Config;
 
 public class AlkahestryEnabledCondition implements ICondition {
-	private static final ResourceLocation ID = new ResourceLocation(Reference.MOD_ID, "alkahestry_enabled");
-	public static final SimpleConditionSerializer<AlkahestryEnabledCondition> SERIALIZER = new SimpleConditionSerializer<>(ID, AlkahestryEnabledCondition::new);
-
-	@Override
-	public ResourceLocation getID() {
-		return ID;
-	}
+	private static final AlkahestryEnabledCondition INSTANCE = new AlkahestryEnabledCondition();
+	public static final MapCodec<AlkahestryEnabledCondition> CODEC = MapCodec.unit(INSTANCE).stable();
 
 	@Override
 	public boolean test(IContext context) {
-		return !Settings.COMMON.disable.disableAlkahestry.get();
+		return !Config.COMMON.disable.disableAlkahestry.get();
+	}
+
+	@Override
+	public MapCodec<? extends ICondition> codec() {
+		return CODEC;
+	}
+
+	@Override
+	public String toString() {
+		return "alkahestry_enabled";
 	}
 }

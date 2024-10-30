@@ -16,13 +16,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import reliquary.reference.Reference;
+import reliquary.Reliquary;
 import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.client.ICurioRenderer;
 
 public class MobCharmBeltRenderer implements ICurioRenderer {
-	public static final ModelLayerLocation MOB_CHARM_BELT_LAYER = new ModelLayerLocation(new ResourceLocation(Reference.MOD_ID, "mob_charm_belt"), "main");
-	private static final ResourceLocation ON_BODY_TEXTURE = new ResourceLocation(Reference.MOD_ID, "textures/models/armor/mob_charm_belt.png");
+	public static final ModelLayerLocation MOB_CHARM_BELT_LAYER = new ModelLayerLocation(Reliquary.getRL("mob_charm_belt"), "main");
+	private static final ResourceLocation ON_BODY_TEXTURE = Reliquary.getRL("textures/models/armor/mob_charm_belt.png");
 	private final HumanoidModel<Player> model;
 
 	public MobCharmBeltRenderer() {
@@ -31,14 +31,14 @@ public class MobCharmBeltRenderer implements ICurioRenderer {
 	}
 
 	@Override
-	public <T extends LivingEntity, M extends EntityModel<T>> void render(ItemStack stack, SlotContext slotContext, PoseStack matrixStack, RenderLayerParent<T, M> renderLayerParent, MultiBufferSource buffer, int light, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float netHeadYaw, float headPitch) {
+	public <T extends LivingEntity, M extends EntityModel<T>> void render(ItemStack stack, SlotContext slotContext, PoseStack poseStack, RenderLayerParent<T, M> renderLayerParent, MultiBufferSource buffer, int light, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float netHeadYaw, float headPitch) {
 		if (!stack.isEmpty()) {
 			model.crouching = slotContext.entity().isCrouching();
 			if (slotContext.entity() instanceof Player player) {
 				model.setupAnim(player, limbSwing,limbSwingAmount, ageInTicks, netHeadYaw, headPitch);
 			}
 			VertexConsumer vertexBuilder = ItemRenderer.getFoilBuffer(buffer, RenderType.entityCutoutNoCull(ON_BODY_TEXTURE), false, false);
-			model.body.render(matrixStack, vertexBuilder, light, OverlayTexture.NO_OVERLAY);
+			model.body.render(poseStack, vertexBuilder, light, OverlayTexture.NO_OVERLAY);
 		}
 	}
 }

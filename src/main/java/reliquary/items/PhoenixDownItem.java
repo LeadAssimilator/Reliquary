@@ -1,20 +1,19 @@
 package reliquary.items;
 
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import reliquary.handler.CommonEventHandler;
 import reliquary.handler.HandlerPriority;
 import reliquary.handler.IPlayerDeathHandler;
 import reliquary.handler.IPlayerHurtHandler;
 import reliquary.init.ModItems;
-import reliquary.network.PacketHandler;
-import reliquary.network.SpawnPhoenixDownParticlesPacket;
-import reliquary.reference.Settings;
+import reliquary.network.SpawnPhoenixDownParticlesPayload;
+import reliquary.reference.Config;
 import reliquary.util.EntityHelper;
 import reliquary.util.InventoryHelper;
 
@@ -25,7 +24,7 @@ public class PhoenixDownItem extends AngelicFeatherItem {
 
 		CommonEventHandler.registerPlayerHurtHandler(new IPlayerHurtHandler() {
 			@Override
-			public boolean canApply(Player player, LivingAttackEvent event) {
+			public boolean canApply(Player player, LivingIncomingDamageEvent event) {
 				return event.getSource() == player.damageSources().fall()
 						&& player.getHealth() > Math.round(event.getAmount())
 						&& player.getFoodData().getFoodLevel() > 0
@@ -33,8 +32,8 @@ public class PhoenixDownItem extends AngelicFeatherItem {
 			}
 
 			@Override
-			public boolean apply(Player player, LivingAttackEvent event) {
-				float hungerDamage = event.getAmount() * ((float) Settings.COMMON.items.phoenixDown.hungerCostPercent.get() / 100F);
+			public boolean apply(Player player, LivingIncomingDamageEvent event) {
+				float hungerDamage = event.getAmount() * ((float) Config.COMMON.items.phoenixDown.hungerCostPercent.get() / 100F);
 				player.causeFoodExhaustion(hungerDamage);
 				return true;
 			}
@@ -57,30 +56,30 @@ public class PhoenixDownItem extends AngelicFeatherItem {
 				revertPhoenixDownToAngelicFeather(player);
 
 				// gives the player a few hearts, sparing them from death.
-				float amountHealed = player.getMaxHealth() * (float) Settings.COMMON.items.phoenixDown.healPercentageOfMaxLife.get() / 100F;
+				float amountHealed = player.getMaxHealth() * (float) Config.COMMON.items.phoenixDown.healPercentageOfMaxLife.get() / 100F;
 				player.setHealth(amountHealed);
 
 				// if the player had any negative status effects [vanilla only for now], remove them:
-				if (Boolean.TRUE.equals(Settings.COMMON.items.phoenixDown.removeNegativeStatus.get())) {
+				if (Boolean.TRUE.equals(Config.COMMON.items.phoenixDown.removeNegativeStatus.get())) {
 					EntityHelper.removeNegativeStatusEffects(player);
 				}
 
 				// added bonus, has some extra effects when drowning or dying to lava
-				if (event.getSource() == player.damageSources().lava() && Boolean.TRUE.equals(Settings.COMMON.items.phoenixDown.giveTemporaryFireResistanceIfFireDamageKilledYou.get())) {
+				if (event.getSource() == player.damageSources().lava() && Boolean.TRUE.equals(Config.COMMON.items.phoenixDown.giveTemporaryFireResistanceIfFireDamageKilledYou.get())) {
 					player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 200, 0));
 				}
-				if (event.getSource() == player.damageSources().drown() && Boolean.TRUE.equals(Settings.COMMON.items.phoenixDown.giveTemporaryWaterBreathingIfDrowningKilledYou.get())) {
+				if (event.getSource() == player.damageSources().drown() && Boolean.TRUE.equals(Config.COMMON.items.phoenixDown.giveTemporaryWaterBreathingIfDrowningKilledYou.get())) {
 					player.setAirSupply(10);
 					player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 200, 0));
 				}
 
 				// give the player temporary resistance to other damages.
-				if (Boolean.TRUE.equals(Settings.COMMON.items.phoenixDown.giveTemporaryDamageResistance.get())) {
+				if (Boolean.TRUE.equals(Config.COMMON.items.phoenixDown.giveTemporaryDamageResistance.get())) {
 					player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 200, 1));
 				}
 
 				// give the player temporary regeneration.
-				if (Boolean.TRUE.equals(Settings.COMMON.items.phoenixDown.giveTemporaryRegeneration.get())) {
+				if (Boolean.TRUE.equals(Config.COMMON.items.phoenixDown.giveTemporaryRegeneration.get())) {
 					player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 200, 1));
 				}
 
@@ -110,6 +109,6 @@ public class PhoenixDownItem extends AngelicFeatherItem {
 	}
 
 	private static void spawnPhoenixResurrectionParticles(Player player) {
-		PacketHandler.sendToClient((ServerPlayer) player, SpawnPhoenixDownParticlesPacket.INSTANCE);
+		PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new SpawnPhoenixDownParticlesPayload(player.position()));
 	}
 }

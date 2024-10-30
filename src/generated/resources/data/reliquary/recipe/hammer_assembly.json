@@ -1,0 +1,32 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "minecraft:stone_button"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "M": {
+      "item": "reliquary:molten_core"
+    },
+    "R": {
+      "tag": "c:rods/blaze"
+    }
+  },
+  "pattern": [
+    "IIB",
+    "RMI",
+    "III"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:hammer_assembly"
+  }
+}

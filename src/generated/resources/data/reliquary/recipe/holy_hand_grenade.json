@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:glowing_water"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    },
+    {
+      "item": "minecraft:tnt"
+    },
+    {
+      "item": "reliquary:catalyzing_gland"
+    }
+  ],
+  "result": {
+    "count": 4,
+    "id": "reliquary:holy_hand_grenade"
+  }
+}

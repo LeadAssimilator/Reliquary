@@ -12,21 +12,20 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
+import reliquary.Reliquary;
 import reliquary.crafting.AlkahestryChargingRecipe;
-import reliquary.reference.Reference;
 
 public class AlkahestryChargingRecipeCategory extends AlkahestryRecipeCategory<AlkahestryChargingRecipe> {
-	public static final RecipeType<AlkahestryChargingRecipe> TYPE = RecipeType.create(Reference.MOD_ID, "alkahestry_charging", AlkahestryChargingRecipe.class);
+	public static final RecipeType<AlkahestryChargingRecipe> TYPE = RecipeType.create(Reliquary.MOD_ID, "alkahestry_charging", AlkahestryChargingRecipe.class);
 	private final IDrawable background;
 	private final Component localizedName;
 
 	public AlkahestryChargingRecipeCategory(IGuiHelper guiHelper) {
 		super(guiHelper);
-		background = guiHelper.createDrawable(new ResourceLocation(Reference.DOMAIN + "textures/gui/jei/backgrounds.png"), 0, 0, 95, 36);
-		localizedName = Component.translatable("jei." + Reference.MOD_ID + ".recipe.alkahest_charging");
+		background = guiHelper.createDrawable(Reliquary.getRL("textures/gui/jei/backgrounds.png"), 0, 0, 95, 36);
+		localizedName = Component.translatable("jei." + Reliquary.MOD_ID + ".recipe.alkahest_charging");
 	}
 
 	@Override

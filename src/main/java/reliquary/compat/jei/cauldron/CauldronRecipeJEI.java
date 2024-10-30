@@ -4,7 +4,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
-class CauldronRecipeJEI {
+public class CauldronRecipeJEI {
 	private final List<ItemStack> inputs;
 
 	private final ItemStack output;

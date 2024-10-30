@@ -1,71 +1,78 @@
 package reliquary.data;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.PackOutput;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import net.minecraftforge.common.data.GlobalLootModifierProvider;
-import net.minecraftforge.common.loot.IGlobalLootModifier;
-import net.minecraftforge.common.loot.LootModifier;
-import net.minecraftforge.common.loot.LootTableIdCondition;
+import net.neoforged.neoforge.common.data.GlobalLootModifierProvider;
+import net.neoforged.neoforge.common.loot.IGlobalLootModifier;
+import net.neoforged.neoforge.common.loot.LootModifier;
+import net.neoforged.neoforge.common.loot.LootTableIdCondition;
+import reliquary.Reliquary;
 import reliquary.init.ModItems;
-import reliquary.reference.Reference;
+
+import java.util.concurrent.CompletableFuture;
 
 public class ReliquaryLootModifierProvider extends GlobalLootModifierProvider {
 
-	ReliquaryLootModifierProvider(PackOutput packOutput) {
-		super(packOutput, Reference.MOD_ID);
+	ReliquaryLootModifierProvider(PackOutput packOutput, CompletableFuture<HolderLookup.Provider> registries) {
+		super(packOutput, registries, Reliquary.MOD_ID);
 	}
 
 	@Override
 	protected void start() {
 		ChestLootInjectSubProvider.LOOT_INJECTS.forEach((vanillaLootTable, injectLootTable) ->
-				add(vanillaLootTable.getPath(), InjectLootModifier.chest(injectLootTable, vanillaLootTable)));
+				add(vanillaLootTable.location().getPath(), InjectLootModifier.chest(injectLootTable, vanillaLootTable)));
 
 		EntityLootInjectSubProvider.LOOT_INJECTS.forEach((vanillaLootTable, injectLootTable) ->
-				add(vanillaLootTable.getPath(), InjectLootModifier.entity(injectLootTable, vanillaLootTable)));
+				add(vanillaLootTable.location().getPath(), InjectLootModifier.entity(injectLootTable, vanillaLootTable)));
 	}
 
 	public static class InjectLootModifier extends LootModifier {
-		public static final Codec<InjectLootModifier> CODEC = RecordCodecBuilder.create(inst -> LootModifier.codecStart(inst).and(
+		public static final MapCodec<InjectLootModifier> CODEC = RecordCodecBuilder.mapCodec(inst -> LootModifier.codecStart(inst).and(
 				inst.group(
-						ResourceLocation.CODEC.fieldOf("loot_table").forGetter(m -> m.lootTable),
-						ResourceLocation.CODEC.fieldOf("loot_table_to_inject_into").forGetter(m -> m.lootTableToInjectInto)
+						ResourceKey.codec(Registries.LOOT_TABLE).fieldOf("loot_table").forGetter(m -> m.lootTable),
+						ResourceKey.codec(Registries.LOOT_TABLE).fieldOf("loot_table_to_inject_into").forGetter(m -> m.lootTableToInjectInto)
 				)
 		).apply(inst, InjectLootModifier::new));
-		private final ResourceLocation lootTable;
-		private final ResourceLocation lootTableToInjectInto;
+		private final ResourceKey<LootTable> lootTable;
+		private final ResourceKey<LootTable> lootTableToInjectInto;
 
-		protected InjectLootModifier(LootItemCondition[] conditions, ResourceLocation lootTable, ResourceLocation lootTableToInjectInto) {
+		protected InjectLootModifier(LootItemCondition[] conditions, ResourceKey<LootTable> lootTable, ResourceKey<LootTable> lootTableToInjectInto) {
 			super(conditions);
 			this.lootTable = lootTable;
 			this.lootTableToInjectInto = lootTableToInjectInto;
 		}
 
-		protected static InjectLootModifier chest(ResourceLocation lootTable, ResourceLocation lootTableToInjectInto) {
-			return new InjectLootModifier(new LootItemCondition[] {ChestLootEnabledCondition.builder().build(),
-					LootTableIdCondition.builder(lootTableToInjectInto).build()}, lootTable, lootTableToInjectInto);
+		protected static InjectLootModifier chest(ResourceKey<LootTable> lootTable, ResourceKey<LootTable> lootTableToInjectInto) {
+			return new InjectLootModifier(new LootItemCondition[]{ChestLootEnabledCondition.builder().build(),
+					LootTableIdCondition.builder(lootTableToInjectInto.location()).build()}, lootTable, lootTableToInjectInto);
 		}
 
-		protected static InjectLootModifier entity(ResourceLocation lootTable, ResourceLocation lootTableToInjectInto) {
-			return new InjectLootModifier(new LootItemCondition[] {EntityLootEnabledCondition.builder().build(),
-					LootTableIdCondition.builder(lootTableToInjectInto).build()}, lootTable, lootTableToInjectInto);
+		protected static InjectLootModifier entity(ResourceKey<LootTable> lootTable, ResourceKey<LootTable> lootTableToInjectInto) {
+			return new InjectLootModifier(new LootItemCondition[]{EntityLootEnabledCondition.builder().build(),
+					LootTableIdCondition.builder(lootTableToInjectInto.location()).build()}, lootTable, lootTableToInjectInto);
 		}
 
+		@SuppressWarnings({"deprecation", "java:S1874"})
+		// Need to call getRandomItemsRaw to skip neo calling modifyLoot event and causing infinite loop
 		@Override
 		protected ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
-			LootTable table = context.getResolver().getLootTable(lootTable);
-			table.getRandomItemsRaw(context, generatedLoot::add);
+			context.getResolver().get(Registries.LOOT_TABLE, lootTable).ifPresent(extraTable -> {
+				extraTable.value().getRandomItemsRaw(context, LootTable.createStackSplitter(context.getLevel(), generatedLoot::add));
+			});
 			return generatedLoot;
 		}
 
 		@Override
-		public Codec<? extends IGlobalLootModifier> codec() {
+		public MapCodec<? extends IGlobalLootModifier> codec() {
 			return ModItems.INJECT_LOOT.get();
 		}
 	}

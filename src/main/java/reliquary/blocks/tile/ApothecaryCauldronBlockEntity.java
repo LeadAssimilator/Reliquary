@@ -1,17 +1,22 @@
 package reliquary.blocks.tile;
 
-import com.google.common.collect.Lists;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
@@ -20,29 +25,25 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import reliquary.blocks.ApothecaryCauldronBlock;
-import reliquary.client.particle.BubbleColorParticleData;
-import reliquary.client.particle.SteamColorParticleData;
+import reliquary.client.init.ModParticles;
 import reliquary.compat.jade.provider.IJadeDataChangeIndicator;
 import reliquary.init.ModBlocks;
 import reliquary.init.ModItems;
 import reliquary.items.PotionEssenceItem;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
-import reliquary.util.potions.XRPotionHelper;
+import reliquary.util.potions.PotionHelper;
 
 import java.util.HashSet;
 import java.util.List;
@@ -50,7 +51,7 @@ import java.util.Set;
 
 public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJadeDataChangeIndicator {
 	private int redstoneCount = 0;
-	private List<MobEffectInstance> effects = Lists.newArrayList();
+	private PotionContents potionContents = PotionContents.EMPTY;
 	private int glowstoneCount = 0;
 	private boolean hasGunpowder = false;
 	private boolean hasNetherwart = false;
@@ -67,7 +68,7 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	public void serverTick(Level level, BlockPos pos) {
 		//Item addition gets handled by the block's onEntityCollided method.
 		if (getHeatSources().contains(level.getBlockState(pos.offset(0, -1, 0)).getBlock()) && getLiquidLevel() > 0) {
-			if (!effects.isEmpty() && hasNetherwart && cookTime < getTotalCookTime()) {
+			if (potionContents.hasEffects() && hasNetherwart && cookTime < getTotalCookTime()) {
 				cookTime++;
 			}
 			if (level.isClientSide) {
@@ -101,7 +102,6 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		}
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnBoilingParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(getTotalCookTime() * getTotalCookTime()) > cookTime * cookTime) {
 			return;
@@ -109,16 +109,16 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		float xOffset = (level.random.nextFloat() - 0.5F) / 1.33F;
 		float zOffset = (level.random.nextFloat() - 0.5F) / 1.33F;
 
-		int color = PotionUtils.getColor(effects);
+		int color = potionContents.getColor();
 
 		float red = (((color >> 16) & 255) / 256F);
 		float green = (((color >> 8) & 255) / 256F);
 		float blue = ((color & 255) / 256F);
 
-		level.addParticle(new BubbleColorParticleData(red, green, blue), pos.getX() + 0.5D + xOffset, pos.getY() + 0.01D + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0D, 0D, 0D);
+		level.addParticle(ColorParticleOption.create(ModParticles.CAULDRON_BUBBLE.get(), red, green, blue), pos.getX() + 0.5D + xOffset, pos.getY() + 0.01D + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0D, 0D, 0D);
 
 		if (level.random.nextInt(6) == 0) {
-			level.addParticle(new SteamColorParticleData(red, green, blue), pos.getX() + 0.5D + xOffset, pos.getY() + 0.01D + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0D, 0.05D + 0.02F * getRenderLiquidLevel(), 0D);
+			level.addParticle(ColorParticleOption.create(ModParticles.CAULDRON_STEAM.get(), red, green, blue), pos.getX() + 0.5D + xOffset, pos.getY() + 0.01D + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0D, 0.05D + 0.02F * getRenderLiquidLevel(), 0D);
 		}
 	}
 
@@ -127,7 +127,6 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		return (6 + 3 * j) / 16.0F;
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnGunpowderParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(8) > 0) {
 			return;
@@ -137,7 +136,6 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		level.addParticle(ParticleTypes.SMOKE, pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0.0D, 0.1D, 0.0D);
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnDragonBreathParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(8) > 0) {
 			return;
@@ -147,29 +145,26 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		level.addParticle(ParticleTypes.DRAGON_BREATH, pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0.0D, 0.1D, 0.0D);
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnGlowstoneParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(8) > 0) {
 			return;
 		}
-		double gauss = 0.5D + level.random.nextFloat() / 2;
+		float gauss = 0.5F + level.random.nextFloat() / 2;
 		float xOffset = (level.random.nextFloat() - 0.5F) / 1.66F;
 		float zOffset = (level.random.nextFloat() - 0.5F) / 1.66F;
-		level.addParticle(ParticleTypes.ENTITY_EFFECT, pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, gauss, gauss, 0.0F);
+		level.addParticle(ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, gauss, gauss, 0.0F), pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0, 0, 0);
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnNetherwartParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(8) > 0) {
 			return;
 		}
-		double gauss = 0.5D + level.random.nextFloat() / 2;
+		float gauss = 0.5F + level.random.nextFloat() / 2;
 		float xOffset = (level.random.nextFloat() - 0.5F) / 1.66F;
 		float zOffset = (level.random.nextFloat() - 0.5F) / 1.66F;
-		level.addParticle(ParticleTypes.ENTITY_EFFECT, pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, gauss, 0.0F, gauss);
+		level.addParticle(ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, gauss, 0.0F, gauss), pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 0, 0, 0);
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnRedstoneParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(10) / redstoneCount > 0) {
 			return;
@@ -179,7 +174,6 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		level.addParticle(DustParticleOptions.REDSTONE, pos.getX() + 0.5D + xOffset, pos.getY() + getRenderLiquidLevel(), pos.getZ() + 0.5D + zOffset, 1D, 0D, 0D);
 	}
 
-	@OnlyIn(Dist.CLIENT)
 	private void spawnFinishedParticles(Level level, BlockPos pos) {
 		if (level.random.nextInt(8) > 0) {
 			return;
@@ -190,8 +184,8 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	}
 
 	@Override
-	public void load(CompoundTag tag) {
-		super.load(tag);
+	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+		super.loadAdditional(tag, registries);
 		setLiquidLevel(tag.getShort("liquidLevel"));
 		glowstoneCount = tag.getInt("glowstoneCount");
 		hasNetherwart = tag.getBoolean("hasNetherwart");
@@ -199,12 +193,12 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		hasDragonBreath = tag.getBoolean("hasDragonBreath");
 		redstoneCount = tag.getInt("redstoneCount");
 		cookTime = tag.getInt("cookTime");
-		effects = XRPotionHelper.getPotionEffectsFromCompoundTag(tag);
+		potionContents = PotionHelper.getPotionContentsFromCompoundTag(tag);
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag compound) {
-		super.saveAdditional(compound);
+	public void saveAdditional(CompoundTag compound, HolderLookup.Provider registries) {
+		super.saveAdditional(compound, registries);
 		compound.putInt("liquidLevel", getLiquidLevel());
 		compound.putInt("cookTime", cookTime);
 		compound.putInt("redstoneCount", redstoneCount);
@@ -212,11 +206,11 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		compound.putBoolean("hasGunpowder", hasGunpowder);
 		compound.putBoolean("hasDragonBreath", hasDragonBreath);
 		compound.putBoolean("hasNetherwart", hasNetherwart);
-		XRPotionHelper.addPotionEffectsToCompoundTag(compound, effects);
+		PotionHelper.addPotionContentsToCompoundTag(compound, potionContents);
 	}
 
 	private boolean finishedCooking() {
-		return hasNetherwart && !effects.isEmpty() && cookTime >= getTotalCookTime() && (!hasDragonBreath || hasGunpowder);
+		return hasNetherwart && potionContents.hasEffects() && cookTime >= getTotalCookTime() && (!hasDragonBreath || hasGunpowder);
 	}
 
 	private ItemStack removeContainedPotion(Level level, BlockPos pos) {
@@ -228,7 +222,7 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		} else {
 			potion = new ItemStack(ModItems.POTION.get());
 		}
-		XRPotionHelper.addPotionEffectsToStack(potion, XRPotionHelper.augmentPotionEffects(effects, redstoneCount, glowstoneCount));
+		potion.set(DataComponents.POTION_CONTENTS, PotionHelper.augmentPotionContents(potionContents, redstoneCount, glowstoneCount));
 
 		setLiquidLevel(getLiquidLevel() - 1);
 		if (getLiquidLevel() <= 0) {
@@ -243,7 +237,7 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		hasGunpowder = false;
 		hasNetherwart = false;
 		redstoneCount = 0;
-		effects.clear();
+		potionContents = PotionContents.EMPTY;
 		dataChanged = true;
 		hasDragonBreath = false;
 		level.sendBlockUpdated(pos, getBlockState(), getBlockState(), 3);
@@ -251,11 +245,11 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 
 	@SuppressWarnings("SimplifiableIfStatement")
 	private boolean isItemValidForInput(ItemStack stack) {
-		if (stack.getItem() instanceof PotionEssenceItem && effects.isEmpty()) {
+		if (stack.getItem() instanceof PotionEssenceItem && !potionContents.hasEffects()) {
 			return true;
 		}
 
-		if (effects.isEmpty()) {
+		if (!potionContents.hasEffects()) {
 			return false;
 		}
 
@@ -276,7 +270,7 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 
 	private void addItem(ItemStack stack, Level level, BlockPos pos) {
 		if (stack.getItem() instanceof PotionEssenceItem) {
-			effects = XRPotionHelper.getPotionEffectsFromStack(stack);
+			potionContents = stack.get(DataComponents.POTION_CONTENTS);
 		} else if (stack.getItem() == Items.GUNPOWDER) {
 			hasGunpowder = true;
 		} else if (stack.getItem() == Items.GLOWSTONE_DUST) {
@@ -293,18 +287,18 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	}
 
 	private int getGlowstoneAmpLimit() {
-		return Settings.COMMON.blocks.apothecaryCauldron.glowstoneLimit.get();
+		return Config.COMMON.blocks.apothecaryCauldron.glowstoneLimit.get();
 	}
 
 	private int getRedstoneAmpLimit() {
-		return Settings.COMMON.blocks.apothecaryCauldron.redstoneLimit.get();
+		return Config.COMMON.blocks.apothecaryCauldron.redstoneLimit.get();
 	}
 
 	private Set<Block> getHeatSources() {
 		Set<Block> heatSources = new HashSet<>();
-		List<String> heatSourceBlockNames = Settings.COMMON.blocks.apothecaryCauldron.heatSources.get();
+		List<String> heatSourceBlockNames = Config.COMMON.blocks.apothecaryCauldron.heatSources.get();
 
-		heatSourceBlockNames.forEach(blockName -> heatSources.add(ForgeRegistries.BLOCKS.getValue(new ResourceLocation(blockName))));
+		heatSourceBlockNames.forEach(blockName -> heatSources.add(BuiltInRegistries.BLOCK.get(ResourceLocation.parse(blockName))));
 		//defaults that can't be removed.
 		heatSources.add(Blocks.LAVA);
 		heatSources.add(Blocks.FIRE);
@@ -316,11 +310,11 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	}
 
 	private int getTotalCookTime() {
-		return Settings.COMMON.blocks.apothecaryCauldron.cookTime.get();
+		return Config.COMMON.blocks.apothecaryCauldron.cookTime.get();
 	}
 
-	public List<MobEffectInstance> getEffects() {
-		return effects;
+	public PotionContents getPotionContents() {
+		return potionContents;
 	}
 
 	public boolean hasNetherwart() {
@@ -371,13 +365,13 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	}
 
 	private boolean addEffectsToEntity(Level level, Entity collidingEntity, LivingEntity livingEntity) {
-		if (effects.isEmpty()) {
+		if (!potionContents.hasEffects()) {
 			return false;
 		}
 		//apply potion effects when done cooking potion (potion essence and netherwart in and fire below at the minimum)
 		if (finishedCooking()) {
-			for (MobEffectInstance effect : effects) {
-				MobEffect potion = effect.getEffect();
+			for (MobEffectInstance effect : potionContents.getAllEffects()) {
+				MobEffect potion = effect.getEffect().value();
 				if (potion.isInstantenous() && level.getGameTime() % 20 != 0) {
 					continue;
 				}
@@ -393,7 +387,7 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	}
 
 	public int getColorMultiplier() {
-		return PotionUtils.getColor(effects);
+		return potionContents.getColor();
 	}
 
 	public int getLiquidLevel() {
@@ -406,40 +400,40 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		}
 	}
 
-	public InteractionResult handleBlockActivation(Level level, Player player, InteractionHand hand, BlockPos pos) {
+	public ItemInteractionResult handleBlockActivation(Level level, Player player, InteractionHand hand, BlockPos pos) {
 		ItemStack itemStack = player.getItemInHand(hand);
 
 		if (itemStack.isEmpty()) {
-			return InteractionResult.CONSUME;
+			return ItemInteractionResult.CONSUME;
 		}
 
 		if (getLiquidLevel() < 3 && !finishedCooking()) {
 			return fillWithWater(player, hand, itemStack);
 		} else if (itemStack.getItem() == ModItems.EMPTY_POTION_VIAL.get() && finishedCooking() && getLiquidLevel() > 0) {
 			if (fillVial(level, player, hand, itemStack, pos)) {
-				return InteractionResult.SUCCESS;
+				return ItemInteractionResult.SUCCESS;
 			}
 		} else if (getLiquidLevel() == 3 && isItemValidForInput(itemStack)) {
 			return addIngredient(level, player, itemStack, pos);
 		}
-		return InteractionResult.CONSUME;
+		return ItemInteractionResult.CONSUME;
 	}
 
-	private InteractionResult addIngredient(Level level, Player player, ItemStack itemStack, BlockPos pos) {
+	private ItemInteractionResult addIngredient(Level level, Player player, ItemStack itemStack, BlockPos pos) {
 		addItem(itemStack, level, pos);
 
 		if (itemStack.getItem() == Items.DRAGON_BREATH
-				&& InventoryHelper.getItemHandlerFrom(player).map(handler -> InventoryHelper.tryToAddToInventory(new ItemStack(Items.GLASS_BOTTLE), handler, 1)).orElse(0) != 1) {
+				&& InventoryHelper.tryToAddToInventory(new ItemStack(Items.GLASS_BOTTLE), InventoryHelper.getMainInventoryItemHandlerFrom(player), 1) != 1) {
 			Containers.dropItemStack(level, worldPosition.getX() + 0.5f, worldPosition.getY() + 1.5f, worldPosition.getZ() + 0.5f, new ItemStack(Items.GLASS_BOTTLE));
 		}
 
 		itemStack.shrink(1);
 
-		return InteractionResult.SUCCESS;
+		return ItemInteractionResult.SUCCESS;
 	}
 
 	private boolean fillVial(Level level, Player player, InteractionHand hand, ItemStack itemStack, BlockPos pos) {
-		if (finishedCooking() && hasNetherwart && !effects.isEmpty() && getLiquidLevel() > 0) {
+		if (finishedCooking() && hasNetherwart && potionContents.hasEffects() && getLiquidLevel() > 0) {
 			ItemStack potion = removeContainedPotion(level, pos);
 
 			itemStack.shrink(1);
@@ -455,19 +449,23 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 		return false;
 	}
 
-	private InteractionResult fillWithWater(Player player, InteractionHand hand, ItemStack itemStack) {
+	private ItemInteractionResult fillWithWater(Player player, InteractionHand hand, ItemStack itemStack) {
 		if (itemStack.getItem() == Items.WATER_BUCKET) {
 			if (!player.isCreative()) {
 				player.setItemInHand(hand, new ItemStack(Items.BUCKET));
 			}
-		} else if (Boolean.FALSE.equals(itemStack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM, null).map(fh -> drainWater(player, fh)).orElse(false))) {
-			return InteractionResult.CONSUME;
+		} else {
+			IFluidHandlerItem fluidHandlerCapability = itemStack.getCapability(Capabilities.FluidHandler.ITEM);
+			if (fluidHandlerCapability == null || !drainWater(player, fluidHandlerCapability)) {
+				return ItemInteractionResult.CONSUME;
+			}
 		}
 
 		setLiquidLevel(3);
+		player.level().playSound(null, worldPosition, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 1.0F, 1.0F);
 		cookTime = 0;
 
-		return InteractionResult.SUCCESS;
+		return ItemInteractionResult.SUCCESS;
 	}
 
 	private Boolean drainWater(Player player, IFluidHandlerItem fh) {
@@ -500,8 +498,8 @@ public class ApothecaryCauldronBlockEntity extends BlockEntityBase implements IJ
 	}
 
 	@Override
-	public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet) {
-		super.onDataPacket(net, packet);
+	public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider registries) {
+		super.onDataPacket(net, packet, registries);
 		dataChanged = true;
 	}
 }

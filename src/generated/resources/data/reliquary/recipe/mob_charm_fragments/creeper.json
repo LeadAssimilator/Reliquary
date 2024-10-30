@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "reliquary:catalyzing_gland"
+    },
+    "S": {
+      "tag": "c:gunpowders"
+    },
+    "T": {
+      "item": "minecraft:bone"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "STS",
+    "PPP"
+  ],
+  "result": {
+    "components": {
+      "reliquary:entity_name": "minecraft:creeper"
+    },
+    "count": 1,
+    "id": "reliquary:mob_charm_fragment"
+  }
+}

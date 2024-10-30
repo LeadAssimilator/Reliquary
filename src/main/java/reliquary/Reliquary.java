@@ -1,82 +1,75 @@
 package reliquary;
 
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.ForgeMod;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import reliquary.client.init.ModParticles;
 import reliquary.crafting.AlkahestryRecipeRegistry;
 import reliquary.data.DataGenerators;
 import reliquary.handler.ClientEventHandler;
 import reliquary.handler.CommonEventHandler;
-import reliquary.init.ModBlocks;
-import reliquary.init.ModCapabilities;
-import reliquary.init.ModCompat;
-import reliquary.init.ModEnchantments;
-import reliquary.init.ModEntities;
-import reliquary.init.ModFluids;
-import reliquary.init.ModItems;
-import reliquary.init.ModPotions;
-import reliquary.init.ModSounds;
-import reliquary.init.PedestalItems;
+import reliquary.init.*;
 import reliquary.items.MobCharmRegistry;
-import reliquary.network.PacketHandler;
-import reliquary.reference.Reference;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.potions.PotionMap;
 
-@Mod(Reference.MOD_ID)
+@Mod(Reliquary.MOD_ID)
 public class Reliquary {
 
+	public static final String MOD_ID = "reliquary";
+
+
 	@SuppressWarnings("java:S1118") //needs to be public for mod to work
-	public Reliquary() {
-		ForgeMod.enableMilkFluid();
-		IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
-		if (FMLEnvironment.dist == Dist.CLIENT) {
-			ClientEventHandler.registerHandlers();
+	public Reliquary(IEventBus modBus, Dist dist, ModContainer container) {
+		NeoForgeMod.enableMilkFluid();
+		if (dist == Dist.CLIENT) {
+			ClientEventHandler.registerHandlers(container);
 		}
 		modBus.addListener(Reliquary::setup);
 		modBus.addListener(Reliquary::loadComplete);
-		modBus.addListener(Settings::onFileChange);
+		modBus.addListener(Config::onFileChange);
 		modBus.addListener(DataGenerators::gatherData);
+		modBus.addListener(ModPayloads::registerPackets);
 
 		ModFluids.registerHandlers(modBus);
 		ModItems.registerListeners(modBus);
 		ModBlocks.registerListeners(modBus);
 		ModEntities.registerListeners(modBus);
-		ModCapabilities.registerListeners(modBus);
-		ModPotions.registerListeners(modBus);
+		ModEffects.registerListeners(modBus);
 		ModSounds.registerListeners(modBus);
-		ModEnchantments.register(modBus);
 		ModParticles.registerListeners(modBus);
+		ModDataComponents.register(modBus);
 
-		ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, Settings.CLIENT_SPEC);
-		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Settings.COMMON_SPEC);
+		container.registerConfig(ModConfig.Type.CLIENT, Config.CLIENT_SPEC);
+		container.registerConfig(ModConfig.Type.COMMON, Config.COMMON_SPEC);
 
-		IEventBus eventBus = MinecraftForge.EVENT_BUS;
+		IEventBus eventBus = NeoForge.EVENT_BUS;
 		CommonEventHandler.registerEventBusListeners(eventBus);
 		eventBus.addListener(MobCharmRegistry::handleAddingFragmentDrops);
 		eventBus.addListener(AlkahestryRecipeRegistry::onResourceReload);
 
-		ModCompat.initCompats();
+		ModCompat.initCompats(modBus);
 	}
 
 	public static void setup(FMLCommonSetupEvent event) {
 		event.enqueueWork(ModItems::registerDispenseBehaviors);
 		PotionMap.initPotionMap();
-		PacketHandler.init();
 		ModItems.registerHandgunMagazines();
 		PedestalItems.init();
 	}
 
 	public static void loadComplete(FMLLoadCompleteEvent event) {
 		MobCharmRegistry.registerDynamicCharmDefinitions();
+	}
+
+	public static ResourceLocation getRL(String regName) {
+		return ResourceLocation.fromNamespaceAndPath(MOD_ID, regName);
 	}
 }

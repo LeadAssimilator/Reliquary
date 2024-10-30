@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:frozen_core"
+    },
+    {
+      "item": "minecraft:shears"
+    },
+    {
+      "tag": "c:gems/diamond"
+    },
+    {
+      "tag": "c:gems/diamond"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:shears_of_winter"
+  }
+}

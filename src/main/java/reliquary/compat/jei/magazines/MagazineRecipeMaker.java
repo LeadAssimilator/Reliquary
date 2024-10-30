@@ -2,24 +2,21 @@ package reliquary.compat.jei.magazines;
 
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.core.NonNullList;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.crafting.*;
 import reliquary.items.BulletItem;
 import reliquary.items.MagazineItem;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.RegistryHelper;
 import reliquary.util.potions.PotionEssence;
+import reliquary.util.potions.PotionHelper;
 import reliquary.util.potions.PotionMap;
-import reliquary.util.potions.XRPotionHelper;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static reliquary.init.ModItems.*;
 
@@ -28,18 +25,18 @@ public class MagazineRecipeMaker {
 	private MagazineRecipeMaker() {
 	}
 
-	public static List<CraftingRecipe> getRecipes() {
-		ArrayList<CraftingRecipe> recipes = new ArrayList<>();
+	public static List<RecipeHolder<CraftingRecipe>> getRecipes() {
+		List<RecipeHolder<CraftingRecipe>> recipes = new ArrayList<>();
 
 		addRegularMagazines(recipes);
-		if (Boolean.FALSE.equals(Settings.COMMON.disable.disablePotions.get())) {
+		if (Boolean.FALSE.equals(Config.COMMON.disable.disablePotions.get())) {
 			addPotionMagazines(recipes);
 		}
 
 		return recipes;
 	}
 
-	private static void addRegularMagazines(ArrayList<CraftingRecipe> recipes) {
+	private static void addRegularMagazines(List<RecipeHolder<CraftingRecipe>> recipes) {
 		Map<BulletItem, MagazineItem> bulletMagazines = new ImmutableMap.Builder<BulletItem, MagazineItem>()
 				.put(NEUTRAL_BULLET.get(), NEUTRAL_MAGAZINE.get())
 				.put(EXORCISM_BULLET.get(), EXORCISM_MAGAZINE.get())
@@ -60,38 +57,42 @@ public class MagazineRecipeMaker {
 
 			ItemStack output = new ItemStack(bulletMagazine.getValue());
 
-			recipes.add(new ShapedRecipe(RegistryHelper.getRegistryName(output.getItem()), "reliquary.magazine", CraftingBookCategory.MISC, 3, 3, inputs, output));
+			ShapedRecipePattern pattern = new ShapedRecipePattern(3, 3, inputs, Optional.empty());
+
+			recipes.add(new RecipeHolder<>(RegistryHelper.getRegistryName(output.getItem()), new ShapedRecipe("reliquary.magazine", CraftingBookCategory.MISC, pattern, output)));
 		}
 	}
 
-	private static void addPotionMagazines(ArrayList<CraftingRecipe> recipes) {
+	private static void addPotionMagazines(List<RecipeHolder<CraftingRecipe>> recipes) {
 		for (PotionEssence essence : PotionMap.uniquePotions) {
-			List<MobEffectInstance> effects = XRPotionHelper.changePotionEffectsDuration(essence.getEffects(), 0.2F);
+			PotionContents potionContents = PotionHelper.changePotionEffectsDuration(essence.getPotionContents(), 0.2F);
 
 			NonNullList<Ingredient> inputs = NonNullList.create();
-			addShots(inputs, effects);
+			addShots(inputs, potionContents);
 			inputs.add(Ingredient.of(new ItemStack(EMPTY_MAGAZINE.get())));
-			addShots(inputs, effects);
+			addShots(inputs, potionContents);
 
 			ItemStack output = new ItemStack(NEUTRAL_MAGAZINE.get());
-			XRPotionHelper.addPotionEffectsToStack(output, effects);
+			PotionHelper.addPotionContentsToStack(output, potionContents);
 
-			recipes.add(new ShapedRecipe(RegistryHelper.getRegistryName(output.getItem()), "reliquary.potion.magazine", CraftingBookCategory.MISC, 3, 3, inputs, output));
+			ShapedRecipePattern pattern = new ShapedRecipePattern(3, 3, inputs, Optional.empty());
+
+			recipes.add(new RecipeHolder<>(RegistryHelper.getRegistryName(output.getItem()), new ShapedRecipe("reliquary.potion.magazine", CraftingBookCategory.MISC, pattern, output)));
 		}
 	}
 
-	private static void addShots(List<Ingredient> inputs, List<MobEffectInstance> effects) {
-		addShots(inputs, effects, NEUTRAL_BULLET.get());
+	private static void addShots(List<Ingredient> inputs, PotionContents potionContents) {
+		addShots(inputs, potionContents, NEUTRAL_BULLET.get());
 	}
 
 	private static void addShots(List<Ingredient> inputs, BulletItem shotType) {
-		addShots(inputs, Collections.emptyList(), shotType);
+		addShots(inputs, PotionContents.EMPTY, shotType);
 	}
 
-	private static void addShots(List<Ingredient> inputs, List<MobEffectInstance> effects, BulletItem shotType) {
+	private static void addShots(List<Ingredient> inputs, PotionContents potionContents, BulletItem shotType) {
 		ItemStack shot = new ItemStack(shotType);
-		if (!effects.isEmpty()) {
-			XRPotionHelper.addPotionEffectsToStack(shot, effects);
+		if (potionContents.hasEffects()) {
+			PotionHelper.addPotionContentsToStack(shot, potionContents);
 		}
 		for (int i = 0; i < 4; i++) {
 			inputs.add(Ingredient.of(shot));

@@ -1,0 +1,27 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:handgun_enabled"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:blaze_powder"
+    },
+    {
+      "tag": "c:rods/blaze"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    },
+    {
+      "tag": "c:nuggets/gold"
+    }
+  ],
+  "result": {
+    "count": 8,
+    "id": "reliquary:bullets/blaze_bullet"
+  }
+}

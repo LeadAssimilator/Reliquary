@@ -2,7 +2,9 @@ package reliquary.items;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -17,24 +19,20 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidType;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.fluids.SimpleFluidContent;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import reliquary.handler.CommonEventHandler;
 import reliquary.handler.HandlerPriority;
 import reliquary.handler.IPlayerHurtHandler;
+import reliquary.init.ModDataComponents;
 import reliquary.init.ModItems;
-import reliquary.items.util.fluid.FluidHandlerInfernalChalice;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
-import reliquary.util.NBTHelper;
 import reliquary.util.TooltipBuilder;
 
 import javax.annotation.Nullable;
@@ -45,15 +43,15 @@ public class InfernalChaliceItem extends ToggleableItem {
 
 		CommonEventHandler.registerPlayerHurtHandler(new IPlayerHurtHandler() {
 			@Override
-			public boolean canApply(Player player, LivingAttackEvent event) {
+			public boolean canApply(Player player, LivingIncomingDamageEvent event) {
 				return (event.getSource().is(DamageTypeTags.IS_FIRE))
 						&& player.getFoodData().getFoodLevel() > 0
 						&& InventoryHelper.playerHasItem(player, ModItems.INFERNAL_CHALICE.get());
 			}
 
 			@Override
-			public boolean apply(Player player, LivingAttackEvent event) {
-				player.causeFoodExhaustion(event.getAmount() * ((float) Settings.COMMON.items.infernalChalice.hungerCostPercent.get() / 100F));
+			public boolean apply(Player player, LivingIncomingDamageEvent event) {
+				player.causeFoodExhaustion(event.getAmount() * ((float) Config.COMMON.items.infernalChalice.hungerCostPercent.get() / 100F));
 				return true;
 			}
 
@@ -65,9 +63,8 @@ public class InfernalChaliceItem extends ToggleableItem {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack chalice, @Nullable Level world, TooltipBuilder tooltipBuilder) {
-		tooltipBuilder.charge(this, ".tooltip2", NBTHelper.getInt("fluidStacks", chalice));
+	protected void addMoreInformation(ItemStack chalice, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
+		tooltipBuilder.charge(this, ".tooltip2", chalice.getOrDefault(ModDataComponents.FLUID_CONTENTS, SimpleFluidContent.EMPTY).getAmount());
 		if (isEnabled(chalice)) {
 			tooltipBuilder.description("tooltip.reliquary.place");
 		} else {
@@ -81,19 +78,19 @@ public class InfernalChaliceItem extends ToggleableItem {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack stack = player.getItemInHand(hand);
 		if (player.isShiftKeyDown()) {
-			return super.use(world, player, hand);
+			return super.use(level, player, hand);
 		}
 
-		BlockHitResult result = getPlayerPOVHitResult(world, player, isEnabled(stack) ? ClipContext.Fluid.SOURCE_ONLY : ClipContext.Fluid.NONE);
+		BlockHitResult result = getPlayerPOVHitResult(level, player, isEnabled(stack) ? ClipContext.Fluid.SOURCE_ONLY : ClipContext.Fluid.NONE);
 
 		if (result.getType() != HitResult.Type.BLOCK) {
 			return new InteractionResultHolder<>(InteractionResult.PASS, stack);
 		} else {
 			BlockPos pos = result.getBlockPos();
-			if (!world.mayInteract(player, pos)) {
+			if (!level.mayInteract(player, pos)) {
 				return new InteractionResultHolder<>(InteractionResult.PASS, stack);
 			}
 
@@ -102,15 +99,21 @@ public class InfernalChaliceItem extends ToggleableItem {
 				return new InteractionResultHolder<>(InteractionResult.PASS, stack);
 			}
 
-			return getFluidHandler(stack).map(fluidHandler -> interactWithFluidHandler(world, player, stack, pos, face, fluidHandler)).orElse(new InteractionResultHolder<>(InteractionResult.FAIL, stack));
+			IFluidHandlerItem fluidHandler = stack.getCapability(Capabilities.FluidHandler.ITEM);
+			if (fluidHandler == null) {
+				return new InteractionResultHolder<>(InteractionResult.FAIL, stack);
+			}
+
+			return interactWithFluidHandler(level, player, stack, pos, face, fluidHandler);
 		}
 	}
 
-	private InteractionResultHolder<ItemStack> interactWithFluidHandler(Level world, Player player, ItemStack stack, BlockPos pos, Direction face, IFluidHandlerItem fluidHandler) {
-		BlockState blockState = world.getBlockState(pos);
+	private InteractionResultHolder<ItemStack> interactWithFluidHandler(Level level, Player player, ItemStack stack, BlockPos pos, Direction face, IFluidHandlerItem fluidHandler) {
+		BlockState blockState = level.getBlockState(pos);
 		if (isEnabled(stack)) {
 			if (blockState.getBlock() == Blocks.LAVA && blockState.getValue(LiquidBlock.LEVEL) == 0 && fluidHandler.fill(new FluidStack(Fluids.LAVA, FluidType.BUCKET_VOLUME), IFluidHandler.FluidAction.SIMULATE) == FluidType.BUCKET_VOLUME) {
-				world.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+				level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+				Fluids.LAVA.getPickupSound().ifPresent(soundEvent -> level.playSound(player, pos, soundEvent, SoundSource.BLOCKS, 1.0F, 1.0F));
 				fluidHandler.fill(new FluidStack(Fluids.LAVA, FluidType.BUCKET_VOLUME), IFluidHandler.FluidAction.EXECUTE);
 				return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
 			}
@@ -118,7 +121,7 @@ public class InfernalChaliceItem extends ToggleableItem {
 			FluidStack fluidDrained = fluidHandler.drain(new FluidStack(Fluids.LAVA, FluidType.BUCKET_VOLUME), IFluidHandler.FluidAction.SIMULATE);
 			if (player.isCreative() || fluidDrained.getAmount() == FluidType.BUCKET_VOLUME) {
 				BlockPos adjustedPos = pos.relative(face);
-				if (tryPlaceContainedLiquid(world, adjustedPos) && !player.isCreative()) {
+				if (tryPlaceContainedLiquid(player, level, adjustedPos) && !player.isCreative()) {
 					fluidHandler.drain(new FluidStack(Fluids.LAVA, FluidType.BUCKET_VOLUME), IFluidHandler.FluidAction.EXECUTE);
 					return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
 				}
@@ -127,22 +130,19 @@ public class InfernalChaliceItem extends ToggleableItem {
 		return new InteractionResultHolder<>(InteractionResult.PASS, stack);
 	}
 
-	private LazyOptional<IFluidHandlerItem> getFluidHandler(ItemStack stack) {
-		return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM, null);
-	}
-
-	private boolean tryPlaceContainedLiquid(Level world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos);
-		if (!world.isEmptyBlock(pos) && blockState.isSolid()) {
+	private boolean tryPlaceContainedLiquid(Player player, Level level, BlockPos pos) {
+		BlockState blockState = level.getBlockState(pos);
+		if (!blockState.canBeReplaced(Fluids.LAVA)) {
 			return false;
 		} else {
-			world.setBlock(pos, Blocks.LAVA.defaultBlockState(), 3);
+			level.setBlock(pos, Blocks.LAVA.defaultBlockState(), 3);
+			level.playSound(player, pos, SoundEvents.BUCKET_EMPTY_LAVA, SoundSource.BLOCKS, 1, 1);
 			return true;
 		}
 	}
 
-	@Override
-	public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-		return new FluidHandlerInfernalChalice(stack);
+	public static int getFluidBucketAmount(ItemStack stack) {
+		IFluidHandlerItem fluidHandler = stack.getCapability(Capabilities.FluidHandler.ITEM);
+		return fluidHandler != null ? fluidHandler.getFluidInTank(0).getAmount() / FluidType.BUCKET_VOLUME : 0;
 	}
 }

@@ -1,11 +1,17 @@
 package reliquary.items;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import net.minecraft.ChatFormatting;
+import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.StringRepresentable;
@@ -21,61 +27,50 @@ import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import reliquary.entities.EnderStaffProjectileEntity;
+import net.minecraft.world.level.portal.DimensionTransition;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
+import reliquary.entities.EnderStaffProjectile;
 import reliquary.init.ModBlocks;
-import reliquary.items.util.FilteredItemHandlerProvider;
-import reliquary.items.util.FilteredItemStack;
-import reliquary.items.util.FilteredItemStackHandler;
+import reliquary.init.ModDataComponents;
 import reliquary.items.util.IScrollableItem;
-import reliquary.reference.Settings;
-import reliquary.util.NBTHelper;
+import reliquary.reference.Config;
 import reliquary.util.TooltipBuilder;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Map;
 
 public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
-
-	private static final String DIMENSION_TAG = "dimensionID";
-	private static final String NODE_X_TAG = "nodeX";
-	private static final String NODE_Y_TAG = "nodeY";
-	private static final String NODE_Z_TAG = "nodeZ";
-
 	public EnderStaffItem() {
 		super(new Properties().stacksTo(1).setNoRepair().rarity(Rarity.EPIC));
 	}
 
 	private int getEnderStaffPearlCost() {
-		return Settings.COMMON.items.enderStaff.enderPearlCastCost.get();
+		return Config.COMMON.items.enderStaff.enderPearlCastCost.get();
 	}
 
 	private int getEnderStaffNodeWarpCost() {
-		return Settings.COMMON.items.enderStaff.enderPearlNodeWarpCost.get();
+		return Config.COMMON.items.enderStaff.enderPearlNodeWarpCost.get();
 	}
 
 	private int getEnderPearlWorth() {
-		return Settings.COMMON.items.enderStaff.enderPearlWorth.get();
+		return Config.COMMON.items.enderStaff.enderPearlWorth.get();
 	}
 
 	private int getEnderPearlLimit() {
-		return Settings.COMMON.items.enderStaff.enderPearlLimit.get();
+		return Config.COMMON.items.enderStaff.enderPearlLimit.get();
 	}
 
 	private int getNodeWarpCastTime() {
-		return Settings.COMMON.items.enderStaff.nodeWarpCastTime.get();
+		return Config.COMMON.items.enderStaff.nodeWarpCastTime.get();
 	}
 
 	public Mode getMode(ItemStack stack) {
-		return NBTHelper.getEnumConstant(stack, "mode", Mode::fromName).orElse(Mode.CAST);
+		return stack.getOrDefault(ModDataComponents.ENDER_STAFF_MODE, Mode.CAST);
 	}
 
 	private void setMode(ItemStack stack, Mode mode) {
-		NBTHelper.putString("mode", stack, mode.getSerializedName());
+		stack.set(ModDataComponents.ENDER_STAFF_MODE, mode);
 	}
 
 	private void cycleMode(ItemStack stack, boolean next) {
@@ -96,20 +91,8 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	@Override
-	public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-		ArrayList<FilteredItemStack> filteredStacks = new ArrayList<>();
-		filteredStacks.add(new FilteredItemStack(Items.ENDER_PEARL, Settings.COMMON.items.enderStaff.enderPearlLimit.get(),
-				Settings.COMMON.items.enderStaff.enderPearlWorth.get(), false));
-		return new FilteredItemHandlerProvider(filteredStacks);
-	}
-
-	@Override
-	public void inventoryTick(ItemStack staff, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		if (world.isClientSide || world.getGameTime() % 10 != 0) {
-			return;
-		}
-
-		if (!(entity instanceof Player player)) {
+	public void inventoryTick(ItemStack staff, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % 10 != 0) {
 			return;
 		}
 
@@ -118,34 +101,26 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 		}
 
 		int pearlCharge = getPearlCount(staff);
-		consumeAndCharge(player, getEnderPearlLimit() - pearlCharge, getEnderPearlWorth(), Items.ENDER_PEARL, 16,
+		consumeAndCharge(player, getEnderPearlLimit() - pearlCharge, getEnderPearlWorth(), stack -> stack.is(Tags.Items.ENDER_PEARLS), 16,
 				chargeToAdd -> setPearlCount(staff, pearlCharge + chargeToAdd));
 	}
 
+	@Override
+	protected boolean isItemValidForContainerSlot(int slot, ItemStack stack) {
+		return stack.isEmpty() || stack.is(Tags.Items.ENDER_PEARLS);
+	}
+
+	@Override
+	protected int getContainerSlotLimit(int slot) {
+		return getEnderPearlLimit();
+	}
+
 	private void setPearlCount(ItemStack stack, int count) {
-		stack.getCapability(ForgeCapabilities.ITEM_HANDLER, null).ifPresent(itemHandler -> {
-			if (!(itemHandler instanceof FilteredItemStackHandler filteredHandler)) {
-				return;
-			}
-			filteredHandler.setTotalCount(0, count);
-		});
+		runOnHandler(stack, handler -> handler.setStackInSlot(0, new ItemStack(Items.ENDER_PEARL, count)));
 	}
 
-	private int getPearlCount(ItemStack staff) {
-		return getPearlCount(staff, false);
-	}
-
-	public int getPearlCount(ItemStack staff, boolean isClient) {
-		if (isClient) {
-			return NBTHelper.getInt("count", staff);
-		}
-
-		return staff.getCapability(ForgeCapabilities.ITEM_HANDLER, null).map(itemHandler -> {
-			if (!(itemHandler instanceof FilteredItemStackHandler filteredHandler)) {
-				return 0;
-			}
-			return filteredHandler.getTotalAmount(0);
-		}).orElse(0);
+	public int getPearlCount(ItemStack staff) {
+		return getFromHandler(staff, handler -> handler.getCountInSlot(0));
 	}
 
 	@Override
@@ -168,13 +143,13 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	@Override
-	public int getUseDuration(ItemStack stack) {
+	public int getUseDuration(ItemStack stack, LivingEntity livingEntity) {
 		return getMode(stack) == Mode.NODE_WARP ? getNodeWarpCastTime() : 0;
 	}
 
 	@Override
-	public void releaseUsing(ItemStack stack, Level worldIn, LivingEntity entityLiving, int timeLeft) {
-		if (!(entityLiving instanceof Player player)) {
+	public void releaseUsing(ItemStack stack, Level level, LivingEntity livingEntity, int timeLeft) {
+		if (!(livingEntity instanceof Player player)) {
 			return;
 		}
 
@@ -184,26 +159,26 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack stack = player.getItemInHand(hand);
 		if (!player.isShiftKeyDown()) {
 			if (getMode(stack) == Mode.CAST || getMode(stack) == Mode.LONG_CAST) {
 				if (getPearlCount(stack) < getEnderStaffPearlCost() && !player.isCreative()) {
 					return new InteractionResultHolder<>(InteractionResult.FAIL, stack);
 				}
-				shootEnderStaffProjectile(world, player, hand, stack);
+				shootEnderStaffProjectile(level, player, hand, stack);
 			} else {
 				player.startUsingItem(hand);
 			}
 		}
-		return super.use(world, player, hand);
+		return super.use(level, player, hand);
 	}
 
-	private void shootEnderStaffProjectile(Level world, Player player, InteractionHand hand, ItemStack stack) {
+	private void shootEnderStaffProjectile(Level level, Player player, InteractionHand hand, ItemStack stack) {
 		player.swing(hand);
-		player.level().playSound(null, player.blockPosition(), SoundEvents.ENDER_PEARL_THROW, SoundSource.NEUTRAL, 0.5F, 0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F));
+		player.level().playSound(null, player.blockPosition(), SoundEvents.ENDER_PEARL_THROW, SoundSource.NEUTRAL, 0.5F, 0.4F / (level.getRandom().nextFloat() * 0.4F + 0.8F));
 		if (!player.level().isClientSide) {
-			EnderStaffProjectileEntity enderStaffProjectile = new EnderStaffProjectileEntity(player.level(), player, getMode(stack) != Mode.LONG_CAST);
+			EnderStaffProjectile enderStaffProjectile = new EnderStaffProjectile(player.level(), player, getMode(stack) != Mode.LONG_CAST);
 			enderStaffProjectile.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.5F, 1.0F);
 			player.level().addFreshEntity(enderStaffProjectile);
 			if (!player.isCreative()) {
@@ -212,66 +187,62 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 		}
 	}
 
-	private void doWraithNodeWarpCheck(ItemStack stack, Level world, Player player) {
-		CompoundTag tag = stack.getTag();
-		if (tag == null || (getPearlCount(stack) < getEnderStaffNodeWarpCost() && !player.isCreative())) {
+	private void doWraithNodeWarpCheck(ItemStack stack, Level level, Player player) {
+		if (!stack.has(ModDataComponents.WARP_DIMENSION) || !stack.has(ModDataComponents.WARP_POSITION) || (getPearlCount(stack) < getEnderStaffNodeWarpCost() && !player.isCreative())) {
 			return;
 		}
 
-		if (!tag.getString(DIMENSION_TAG).equals(getDimension(world))) {
-			if (!world.isClientSide) {
-				player.sendSystemMessage(Component.literal(ChatFormatting.DARK_RED + "Out of range!"));
+		ResourceLocation wraithNodeDimension = Preconditions.checkNotNull(stack.get(ModDataComponents.WARP_DIMENSION));
+		BlockPos wraithNodePos = Preconditions.checkNotNull(stack.get(ModDataComponents.WARP_POSITION));
+		if (!player.level().dimension().location().equals(wraithNodeDimension) && player.level() instanceof ServerLevel serverLevel) {
+			ServerLevel destination = serverLevel.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, wraithNodeDimension));
+			if (destination != null && canTeleport(destination, wraithNodePos)) {
+				teleportToDimension(player, destination, wraithNodePos);
+				if (!player.isCreative() && !player.level().isClientSide) {
+					setPearlCount(stack, getPearlCount(stack) - getEnderStaffNodeWarpCost());
+				}
 			}
-			return;
-		}
-
-		BlockPos wraithNodePos = new BlockPos(tag.getInt(NODE_X_TAG + getDimension(world)), tag.getInt(NODE_Y_TAG + getDimension(world)), tag.getInt(NODE_Z_TAG + getDimension(world)));
-		if (world.getBlockState(wraithNodePos).getBlock() == ModBlocks.WRAITH_NODE.get() && canTeleport(world, wraithNodePos)) {
-			teleportPlayer(world, wraithNodePos, player);
-			if (!player.isCreative() && !player.level().isClientSide) {
-				setPearlCount(stack, getPearlCount(stack) - getEnderStaffNodeWarpCost());
-			}
-			return;
-		}
-
-		if (tag.contains(DIMENSION_TAG)) {
-			tag.remove(DIMENSION_TAG);
-			tag.remove(NODE_X_TAG);
-			tag.remove(NODE_Y_TAG);
-			tag.remove(NODE_Z_TAG);
-			if (!world.isClientSide) {
-				player.sendSystemMessage(Component.literal(ChatFormatting.DARK_RED + "Node doesn't exist!"));
-			} else {
-				player.playSound(SoundEvents.ENDERMAN_DEATH, 1.0f, 1.0f);
+		} else {
+			if (canTeleport(level, wraithNodePos)) {
+				teleportPlayer(level, wraithNodePos, player);
+				if (!player.isCreative() && !player.level().isClientSide) {
+					setPearlCount(stack, getPearlCount(stack) - getEnderStaffNodeWarpCost());
+				}
 			}
 		}
 	}
 
-	private boolean canTeleport(Level world, BlockPos pos) {
+	private static void teleportToDimension(Player player, ServerLevel destination, BlockPos wraithNodePos) {
+		player.changeDimension(new DimensionTransition(destination, wraithNodePos.above().getBottomCenter(), Vec3.ZERO,
+				player.getYRot(), player.getXRot(), DimensionTransition.DO_NOTHING));
+	}
+
+	private static boolean canTeleport(Level level, BlockPos pos) {
+		if (level.getBlockState(pos).getBlock() != ModBlocks.WRAITH_NODE.get()) {
+			return false;
+		}
+
 		BlockPos up = pos.above();
-		return world.isEmptyBlock(up) && world.isEmptyBlock(up.above());
+		return level.isEmptyBlock(up) && level.isEmptyBlock(up.above());
 	}
 
-	private void teleportPlayer(Level world, BlockPos pos, Player player) {
+	private static void teleportPlayer(Level level, BlockPos pos, Player player) {
 		player.teleportTo(pos.getX() + 0.5, pos.getY() + 0.875, pos.getZ() + 0.5);
 		player.playSound(SoundEvents.ENDERMAN_TELEPORT, 1.0f, 1.0f);
 		for (int particles = 0; particles < 2; particles++) {
-			world.addParticle(ParticleTypes.PORTAL, player.getX(), player.getEyeY(), player.getZ(), world.random.nextGaussian(), world.random.nextGaussian(), world.random.nextGaussian());
+			level.addParticle(ParticleTypes.PORTAL, player.getX(), player.getEyeY(), player.getZ(), level.random.nextGaussian(), level.random.nextGaussian(), level.random.nextGaussian());
 		}
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack staff, @Nullable Level world, TooltipBuilder tooltipBuilder) {
+	protected void addMoreInformation(ItemStack staff, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
 		tooltipBuilder.description(this, ".tooltip2");
-		tooltipBuilder.charge(this, ".tooltip.charge", getPearlCount(staff, true));
+		tooltipBuilder.charge(this, ".tooltip.charge", getPearlCount(staff));
 
-		if (staff.getTag() != null && staff.getTag().contains(NODE_X_TAG + getDimension(world)) && staff.getTag().contains(NODE_Y_TAG + getDimension(world)) && staff.getTag().contains(NODE_Z_TAG + getDimension(world))) {
-			if (staff.getTag() != null && !staff.getTag().getString(DIMENSION_TAG).equals(getDimension(world))) {
-				tooltipBuilder.warning(this, ".tooltip.position.out_of_range");
-			} else {
-				tooltipBuilder.data(this, ".tooltip.position", staff.getTag().getInt(NODE_X_TAG + getDimension(world)), staff.getTag().getInt(NODE_Y_TAG + getDimension(world)), staff.getTag().getInt(NODE_Z_TAG + getDimension(world)));
-			}
+		if (staff.has(ModDataComponents.WARP_POSITION)) {
+			ResourceLocation dimension = staff.getOrDefault(ModDataComponents.WARP_DIMENSION, Level.OVERWORLD.location());
+			BlockPos pos = staff.getOrDefault(ModDataComponents.WARP_POSITION, BlockPos.ZERO);
+			tooltipBuilder.data(this, ".tooltip.position", pos.getX(), pos.getY(), pos.getZ(), dimension);
 		} else {
 			tooltipBuilder.description(this, ".tooltip.position.nowhere");
 		}
@@ -291,19 +262,19 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 	@Override
 	public InteractionResult useOn(UseOnContext itemUseContext) {
 		ItemStack stack = itemUseContext.getItemInHand();
-		Level world = itemUseContext.getLevel();
+		Level level = itemUseContext.getLevel();
 		BlockPos pos = itemUseContext.getClickedPos();
 
 		// if right clicking on a wraith node, bind the eye to that wraith node.
-		if ((stack.getTag() == null || !(stack.getTag().contains(DIMENSION_TAG))) && world.getBlockState(pos).getBlock() == ModBlocks.WRAITH_NODE.get()) {
-			setWraithNode(stack, pos, getDimension(world));
+		if (level.getBlockState(pos).getBlock() == ModBlocks.WRAITH_NODE.get()) {
+			setWraithNode(stack, pos, level.dimension().location());
 
 			Player player = itemUseContext.getPlayer();
 			if (player != null) {
 				player.playSound(SoundEvents.ENDERMAN_TELEPORT, 1.0f, 1.0f);
 			}
 			for (int particles = 0; particles < 12; particles++) {
-				world.addParticle(ParticleTypes.PORTAL, pos.getX() + world.random.nextDouble(), pos.getY() + world.random.nextDouble(), pos.getZ() + world.random.nextDouble(), world.random.nextGaussian(), world.random.nextGaussian(), world.random.nextGaussian());
+				level.addParticle(ParticleTypes.PORTAL, pos.getX() + level.random.nextDouble(), pos.getY() + level.random.nextDouble(), pos.getZ() + level.random.nextDouble(), level.random.nextGaussian(), level.random.nextGaussian(), level.random.nextGaussian());
 			}
 			return InteractionResult.SUCCESS;
 		} else {
@@ -311,33 +282,18 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 		}
 	}
 
-	private String getDimension(@Nullable Level world) {
-		return world != null ? world.dimension().registry().toString() : Level.OVERWORLD.location().toString();
-	}
-
-	private void setWraithNode(ItemStack eye, BlockPos pos, String dimension) {
-		NBTHelper.putInt(NODE_X_TAG + dimension, eye, pos.getX());
-		NBTHelper.putInt(NODE_Y_TAG + dimension, eye, pos.getY());
-		NBTHelper.putInt(NODE_Z_TAG + dimension, eye, pos.getZ());
-		NBTHelper.putString(DIMENSION_TAG, eye, dimension);
-	}
-
-	@Nullable
-	@Override
-	public CompoundTag getShareTag(ItemStack staff) {
-		CompoundTag nbt = super.getShareTag(staff);
-		if (nbt == null) {
-			nbt = new CompoundTag();
-		}
-		nbt.putInt("count", getPearlCount(staff));
-
-		return nbt;
+	private void setWraithNode(ItemStack eye, BlockPos pos, ResourceLocation dimension) {
+		eye.set(ModDataComponents.WARP_DIMENSION, dimension);
+		eye.set(ModDataComponents.WARP_POSITION, pos);
 	}
 
 	public enum Mode implements StringRepresentable {
 		CAST("cast"),
 		LONG_CAST("long_cast"),
 		NODE_WARP("node_warp");
+
+		public static final Codec<Mode> CODEC = StringRepresentable.fromEnum(Mode::values);
+		public static final StreamCodec<FriendlyByteBuf, Mode> STREAM_CODEC = NeoForgeStreamCodecs.enumCodec(Mode.class);
 
 		private final String name;
 
@@ -358,7 +314,6 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 			return VALUES[Math.floorMod(ordinal() - 1, VALUES.length)];
 		}
 
-		private static final Map<String, Mode> NAME_VALUES;
 		private static final Mode[] VALUES;
 
 		static {
@@ -366,12 +321,7 @@ public class EnderStaffItem extends ToggleableItem implements IScrollableItem {
 			for (Mode value : Mode.values()) {
 				builder.put(value.getSerializedName(), value);
 			}
-			NAME_VALUES = builder.build();
 			VALUES = values();
-		}
-
-		public static Mode fromName(String name) {
-			return NAME_VALUES.getOrDefault(name, CAST);
 		}
 	}
 }

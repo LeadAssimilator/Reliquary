@@ -18,11 +18,11 @@ public class FertileLilyPadItem extends BlockItemBase {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level worldIn, Player playerIn, InteractionHand handIn) {
-		BlockHitResult blockraytraceresult = getPlayerPOVHitResult(worldIn, playerIn, ClipContext.Fluid.SOURCE_ONLY);
-		BlockHitResult blockraytraceresult1 = blockraytraceresult.withPosition(blockraytraceresult.getBlockPos().above());
-		InteractionResult actionresulttype = super.useOn(new UseOnContext(playerIn, handIn, blockraytraceresult1));
-		return new InteractionResultHolder<>(actionresulttype, playerIn.getItemInHand(handIn));
+	public InteractionResultHolder<ItemStack> use(Level level, Player playerIn, InteractionHand handIn) {
+		BlockHitResult hitResult = getPlayerPOVHitResult(level, playerIn, ClipContext.Fluid.SOURCE_ONLY);
+		BlockHitResult hitResultAbove = hitResult.withPosition(hitResult.getBlockPos().above());
+		InteractionResult interactionResult = super.useOn(new UseOnContext(playerIn, handIn, hitResultAbove));
+		return new InteractionResultHolder<>(interactionResult, playerIn.getItemInHand(handIn));
 	}
 
 	@Override

@@ -1,0 +1,37 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:spawn_egg_enabled"
+    }
+  ],
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_mob_charm_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "reliquary:mob_charm_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "reliquary:uncrafting/spawn_egg"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_mob_charm_fragment"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "reliquary:uncrafting/spawn_egg"
+    ]
+  }
+}

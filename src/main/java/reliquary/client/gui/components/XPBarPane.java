@@ -4,10 +4,10 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
-import reliquary.reference.Reference;
+import reliquary.Reliquary;
 
 public class XPBarPane extends Component {
-	private static final ResourceLocation XP_BAR = new ResourceLocation(Reference.MOD_ID, "textures/gui/xp_bar.png");
+	private static final ResourceLocation XP_BAR = Reliquary.getRL("textures/gui/xp_bar.png");
 	private float xpRatio;
 
 	public void setXpRatio(float xpRatio) {
@@ -33,11 +33,11 @@ public class XPBarPane extends Component {
 	public void renderInternal(GuiGraphics guiGraphics, int x, int y) {
 		RenderSystem.setShader(GameRenderer::getPositionTexShader);
 		RenderSystem.setShaderTexture(0, XP_BAR);
-		blit(x, y, 0, 0, 11, 74, 22, 74);
+		blit(guiGraphics, x, y, 0, 0, 11, 74, 22, 74);
 
 		if (xpRatio > 0) {
 			int filledHeight = (int) (xpRatio * 74);
-			blit(x, y + (74 - filledHeight), 11, 74 - filledHeight, 11, filledHeight, 22, 74);
+			blit(guiGraphics, x, y + (74 - filledHeight), 11, 74 - filledHeight, 11, filledHeight, 22, 74);
 		}
 	}
 }

@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "reliquary:witch_hat"
+    },
+    "S": {
+      "item": "minecraft:glass_bottle"
+    },
+    "T": {
+      "item": "minecraft:spider_eye"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "STS",
+    "PPP"
+  ],
+  "result": {
+    "components": {
+      "reliquary:entity_name": "minecraft:witch"
+    },
+    "count": 1,
+    "id": "reliquary:mob_charm_fragment"
+  }
+}

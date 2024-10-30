@@ -6,15 +6,10 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import reliquary.api.IPedestalItemWrapper;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 
 public class PedestalRegistry {

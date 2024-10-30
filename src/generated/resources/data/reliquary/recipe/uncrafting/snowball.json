@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "reliquary:frozen_core"
+    }
+  ],
+  "result": {
+    "count": 5,
+    "id": "minecraft:snowball"
+  }
+}

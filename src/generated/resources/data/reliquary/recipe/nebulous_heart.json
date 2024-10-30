@@ -1,0 +1,26 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "reliquary:mob_drops_craftable"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "E": {
+      "tag": "c:ender_pearls"
+    },
+    "G": {
+      "tag": "c:ingots/gold"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "GEG",
+    "GGG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "reliquary:nebulous_heart"
+  }
+}

@@ -3,7 +3,9 @@ package reliquary.blocks;
 import com.google.common.collect.Maps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.util.FastColor;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -34,7 +36,7 @@ public class WallInterdictionTorchBlock extends InterdictionTorchBlock {
 	}
 
 	@Override
-	public void animateTick(BlockState state, Level world, BlockPos pos, RandomSource random) {
+	public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
 		double xOffset = pos.getX() + 0.5F;
 		double yOffset = pos.getY() + 0.7F;
 		double zOffset = pos.getZ() + 0.5F;
@@ -42,12 +44,12 @@ public class WallInterdictionTorchBlock extends InterdictionTorchBlock {
 		double verticalModifier = 0.22D;
 		double horizontalModifier = 0.27D;
 		Direction oppositeFacing = state.getValue(HORIZONTAL_FACING).getOpposite();
-		world.addParticle(ParticleTypes.ENTITY_EFFECT, xOffset + horizontalModifier * oppositeFacing.getStepX(), yOffset + verticalModifier, zOffset + horizontalModifier * oppositeFacing.getStepZ(), 0.0D, 0.0D, 0.0D);
-		world.addParticle(ParticleTypes.FLAME, xOffset + horizontalModifier * oppositeFacing.getStepX(), yOffset + verticalModifier, zOffset + horizontalModifier * oppositeFacing.getStepZ(), 0.0D, 0.0D, 0.0D);
+		level.addParticle(ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, FastColor.ARGB32.opaque( 0)), xOffset + horizontalModifier * oppositeFacing.getStepX(), yOffset + verticalModifier, zOffset + horizontalModifier * oppositeFacing.getStepZ(), 0.0D, 0.0D, 0.0D);
+		level.addParticle(ParticleTypes.FLAME, xOffset + horizontalModifier * oppositeFacing.getStepX(), yOffset + verticalModifier, zOffset + horizontalModifier * oppositeFacing.getStepZ(), 0.0D, 0.0D, 0.0D);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return SHAPES.get(state.getValue(HORIZONTAL_FACING));
 	}
 

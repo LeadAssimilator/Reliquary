@@ -1,36 +1,39 @@
 package reliquary.crafting;
 
-import com.google.gson.JsonObject;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
 import net.minecraft.world.level.Level;
-
-import javax.annotation.Nullable;
+import reliquary.init.ModItems;
 
 public class FragmentToSpawnEggRecipe extends ShapelessRecipe {
-	public static final Serializer SERIALIZER = new Serializer();
 	private final ShapelessRecipe recipeDelegate;
 
 	public FragmentToSpawnEggRecipe(ShapelessRecipe recipeDelegate) {
-		super(recipeDelegate.getId(), recipeDelegate.getGroup(), CraftingBookCategory.MISC, recipeDelegate.result, recipeDelegate.getIngredients());
+		super(recipeDelegate.getGroup(), CraftingBookCategory.MISC, recipeDelegate.result, recipeDelegate.getIngredients());
 		this.recipeDelegate = recipeDelegate;
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inv, Level worldIn) {
-		return super.matches(inv, worldIn) && FragmentRecipeHelper.hasOnlyOneFragmentType(inv);
+	public boolean matches(CraftingInput inv, Level level) {
+		return super.matches(inv, level) && FragmentRecipeHelper.hasOnlyOneFragmentType(inv);
 	}
 
 	@Override
-	public ItemStack assemble(CraftingContainer inv, RegistryAccess registryAccess) {
+	public ItemStack assemble(CraftingInput inv, HolderLookup.Provider registries) {
 		return FragmentRecipeHelper.getRegistryName(inv).map(FragmentRecipeHelper::getSpawnEggStack)
 				.orElse(new ItemStack(FragmentRecipeHelper.FALL_BACK_SPAWN_EGG));
+	}
+
+	@Override
+	public RecipeSerializer<?> getSerializer() {
+		return ModItems.FRAGMENT_TO_SPAWN_EGG_SERIALIZER.get();
 	}
 
 	@Override
@@ -39,22 +42,19 @@ public class FragmentToSpawnEggRecipe extends ShapelessRecipe {
 	}
 
 	public static class Serializer implements RecipeSerializer<FragmentToSpawnEggRecipe> {
+		private static final MapCodec<FragmentToSpawnEggRecipe> CODEC = RecipeSerializer.SHAPELESS_RECIPE.codec()
+				.xmap(FragmentToSpawnEggRecipe::new, recipe -> recipe.recipeDelegate);
+		private static final StreamCodec<RegistryFriendlyByteBuf, FragmentToSpawnEggRecipe> STREAM_CODEC = RecipeSerializer.SHAPELESS_RECIPE.streamCodec()
+				.map(FragmentToSpawnEggRecipe::new, recipe -> recipe.recipeDelegate);
 
 		@Override
-		public FragmentToSpawnEggRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-			return new FragmentToSpawnEggRecipe(RecipeSerializer.SHAPELESS_RECIPE.fromJson(recipeId, json));
-		}
-
-		@Nullable
-		@Override
-		public FragmentToSpawnEggRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-			//noinspection ConstantConditions - shapeless crafting recipe serializer always returns an instance here so no need to check for null
-			return new FragmentToSpawnEggRecipe(RecipeSerializer.SHAPELESS_RECIPE.fromNetwork(recipeId, buffer));
+		public MapCodec<FragmentToSpawnEggRecipe> codec() {
+			return CODEC;
 		}
 
 		@Override
-		public void toNetwork(FriendlyByteBuf buffer, FragmentToSpawnEggRecipe recipe) {
-			RecipeSerializer.SHAPELESS_RECIPE.toNetwork(buffer, recipe.recipeDelegate);
+		public StreamCodec<RegistryFriendlyByteBuf, FragmentToSpawnEggRecipe> streamCodec() {
+			return STREAM_CODEC;
 		}
 	}
 }

@@ -2,21 +2,16 @@ package reliquary.items;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.*;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -25,40 +20,28 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.registries.ForgeRegistries;
+import reliquary.init.ModDataComponents;
 import reliquary.items.util.IScrollableItem;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.InventoryHelper;
-import reliquary.util.NBTHelper;
 import reliquary.util.NoPlayerBlockItemUseContext;
-import reliquary.util.RegistryHelper;
 import reliquary.util.TooltipBuilder;
 
 import javax.annotation.Nullable;
+import java.util.HashSet;
 import java.util.StringJoiner;
 
 public class SojournerStaffItem extends ToggleableItem implements IScrollableItem {
 	private static final int COOLDOWN = 10;
-
-	private static final String ITEMS_TAG = "Items";
-	private static final String QUANTITY_TAG = "Quantity";
-	private static final String CURRENT_INDEX_TAG = "Current";
+	public static final int TORCH_SLOT = 0;
 
 	public SojournerStaffItem() {
-		super(new Properties().stacksTo(1));
+		super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
 	}
 
 	@Override
-	public Rarity getRarity(ItemStack stack) {
-		return Rarity.EPIC;
-	}
-
-	@Override
-	public void inventoryTick(ItemStack stack, Level world, Entity entity, int itemSlot, boolean isSelected) {
-		if (world.isClientSide || world.getGameTime() % COOLDOWN != 0 || !(entity instanceof Player player)) {
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int itemSlot, boolean isSelected) {
+		if (level.isClientSide || !(entity instanceof Player player) || player.isSpectator() || level.getGameTime() % COOLDOWN != 0) {
 			return;
 		}
 
@@ -76,32 +59,32 @@ public class SojournerStaffItem extends ToggleableItem implements IScrollableIte
 		return InteractionResult.SUCCESS;
 	}
 
-	private void scanForMatchingTorchesToFillInternalStorage(ItemStack stack, Player player) {
-		for (String torch : Settings.COMMON.items.sojournerStaff.torches.get()) {
-			consumeAndCharge(player, Settings.COMMON.items.sojournerStaff.maxCapacityPerItemType.get() - getInternalStorageItemCount(stack, torch), 1, ist -> RegistryHelper.getItemRegistryName(ist.getItem()).equals(torch), 16,
-					chargeToAdd -> addItemToInternalStorage(stack, torch, chargeToAdd));
+	private void scanForMatchingTorchesToFillInternalStorage(ItemStack staff, Player player) {
+		HashSet<Item> remainingTorches = new HashSet<>(Config.COMMON.items.sojournerStaff.getTorchItems());
+		runOnHandler(staff, handler -> {
+			for (int i = 0; i < handler.getSlots(); i++) {
+				ItemStack stackInSlot = handler.getStackInSlot(i);
+				if (!stackInSlot.isEmpty()) {
+					remainingTorches.remove(stackInSlot.getItem());
+					consumeAndCharge(player, Config.COMMON.items.sojournerStaff.maxCapacityPerItemType.get() - stackInSlot.getCount(), 1,
+							stack -> stack.getItem() == stackInSlot.getItem(), 16, chargeToAdd -> addItemToContainer(staff, stackInSlot.getItem(), chargeToAdd));
+				}
+			}
+		});
+
+
+		for (Item torch : remainingTorches) {
+			consumeAndCharge(player, Config.COMMON.items.sojournerStaff.maxCapacityPerItemType.get(), 1,
+					stack -> stack.getItem() == torch, 16, chargeToAdd -> addItemToContainer(staff, torch, chargeToAdd));
 		}
 	}
 
 	public ItemStack getCurrentTorch(ItemStack stack) {
-		return getItem(getCurrentTorchTag(stack));
+		return getFromHandler(stack, handler -> getCurrentTorchIndex(stack) < handler.getSlots() ? handler.getStackInSlot(getCurrentTorchIndex(stack)) : ItemStack.EMPTY);
 	}
 
 	public int getTorchCount(ItemStack stack) {
-		return getCurrentTorchTag(stack).getInt(QUANTITY_TAG);
-	}
-
-	private CompoundTag getCurrentTorchTag(ItemStack stack) {
-		CompoundTag tagCompound = NBTHelper.getTag(stack);
-
-		ListTag tagList = getItemListTag(tagCompound);
-		int current = getCurrentIndex(tagCompound, tagList);
-
-		return tagList.getCompound(current);
-	}
-
-	private ListTag getItemListTag(CompoundTag tagCompound) {
-		return tagCompound.getList(ITEMS_TAG, 10);
+		return getFromHandler(stack, handler -> getCurrentTorchIndex(stack) < handler.getSlots() ? handler.getCountInSlot(getCurrentTorchIndex(stack)) : 0);
 	}
 
 	private void cycleTorchMode(ItemStack stack, boolean next) {
@@ -109,34 +92,31 @@ public class SojournerStaffItem extends ToggleableItem implements IScrollableIte
 		if (currentTorch.isEmpty()) {
 			return;
 		}
-		CompoundTag tagCompound = NBTHelper.getTag(stack);
-		ListTag tagList = getItemListTag(tagCompound);
-		if (tagList.size() == 1) {
-			return;
-		}
-
-		int current = getCurrentIndex(tagCompound, tagList);
-
-		tagCompound.putInt(CURRENT_INDEX_TAG, Math.floorMod(current + (next ? 1 : -1), tagList.size()));
+		runOnHandler(stack, handler -> {
+			int slots = handler.getSlots();
+			if (slots == 1) {
+				return;
+			}
+			int currentIndex = getCurrentTorchIndex(stack);
+			stack.set(ModDataComponents.TORCH_INDEX, (byte) Math.floorMod(currentIndex + (next ? 1 : -1), slots));
+		});
 	}
 
-	private int getCurrentIndex(CompoundTag tagCompound, ListTag tagList) {
-		int current = tagCompound.getInt(CURRENT_INDEX_TAG);
-		if (tagList.size() <= current) {
-			tagCompound.putInt(CURRENT_INDEX_TAG, 0);
-		}
-		return current;
+	private int getCurrentTorchIndex(ItemStack stack) {
+		return stack.getOrDefault(ModDataComponents.TORCH_INDEX, (byte) 0);
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	protected void addMoreInformation(ItemStack staff, @Nullable Level world, TooltipBuilder tooltipBuilder) {
+	protected void addMoreInformation(ItemStack staff, @Nullable HolderLookup.Provider registries, TooltipBuilder tooltipBuilder) {
 		StringJoiner joiner = new StringJoiner(";");
-		iterateItems(staff, tag -> {
-			ItemStack containedItem = getItem(tag);
-			int quantity = tag.getInt(QUANTITY_TAG);
-			joiner.add(containedItem.getHoverName().getString() + ": " + quantity);
-		}, () -> false);
+		runOnHandler(staff, handler -> {
+			for (int i = 0; i < handler.getSlots(); i++) {
+				ItemStack stackInSlot = handler.getStackInSlot(i);
+				if (!stackInSlot.isEmpty()) {
+					joiner.add(stackInSlot.getHoverName().getString() + ": " + stackInSlot.getCount());
+				}
+			}
+		});
 
 		if (getTorchCount(staff) > 0) {
 			tooltipBuilder.data(this, ".tooltip.contents", joiner.toString());
@@ -155,10 +135,6 @@ public class SojournerStaffItem extends ToggleableItem implements IScrollableIte
 		return true;
 	}
 
-	private static ItemStack getItem(CompoundTag tagItemData) {
-		return new ItemStack(ForgeRegistries.ITEMS.getValue(new ResourceLocation(tagItemData.getString(ITEM_NAME_TAG))));
-	}
-
 	@Override
 	public InteractionResult useOn(UseOnContext context) {
 		return placeTorch(context);
@@ -167,14 +143,14 @@ public class SojournerStaffItem extends ToggleableItem implements IScrollableIte
 	private InteractionResult placeTorch(UseOnContext context) {
 		Player player = context.getPlayer();
 		InteractionHand hand = context.getHand();
-		Level world = context.getLevel();
+		Level level = context.getLevel();
 		BlockPos pos = context.getClickedPos();
 		Direction face = context.getClickedFace();
 		ItemStack stack = context.getItemInHand();
 
-		BlockPos placeBlockAt = pos.relative(face);
+		BlockPos placeBlockAt = context.getLevel().getBlockState(pos).canBeReplaced() ? pos : pos.relative(face);
 
-		if (world.isClientSide) {
+		if (level.isClientSide) {
 			return InteractionResult.SUCCESS;
 		}
 		ItemStack torch = getCurrentTorch(stack);
@@ -187,54 +163,58 @@ public class SojournerStaffItem extends ToggleableItem implements IScrollableIte
 		player.swing(hand);
 
 		Block blockToPlace = ((BlockItem) torch.getItem()).getBlock();
-		NoPlayerBlockItemUseContext placeContext = new NoPlayerBlockItemUseContext(world, placeBlockAt, new ItemStack(blockToPlace), face);
+		NoPlayerBlockItemUseContext placeContext = new NoPlayerBlockItemUseContext(level, placeBlockAt, new ItemStack(blockToPlace), face);
 		if (!placeContext.canPlace() || !removeTorches(player, stack, torch, placeBlockAt)) {
 			return InteractionResult.FAIL;
 		}
 		((BlockItem) torch.getItem()).place(placeContext);
-		double gauss = 0.5D + world.random.nextFloat() / 2;
-		world.addParticle(ParticleTypes.ENTITY_EFFECT, placeBlockAt.getX() + 0.5D, placeBlockAt.getY() + 0.5D, placeBlockAt.getZ() + 0.5D, gauss, gauss, 0.0F);
+		float gauss = 0.5F + level.random.nextFloat() / 2;
+		level.addParticle(ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, gauss, gauss, 0.0F),
+				placeBlockAt.getX() + 0.5D, placeBlockAt.getY() + 0.5D, placeBlockAt.getZ() + 0.5D,
+				0, 0, 0);
 		return InteractionResult.SUCCESS;
 	}
 
 	private boolean removeTorches(Player player, ItemStack staff, ItemStack torch, BlockPos placeBlockAt) {
 		if (!player.isCreative()) {
 			int distance = (int) player.getEyePosition(1).distanceTo(new Vec3(placeBlockAt.getX(), placeBlockAt.getY(), placeBlockAt.getZ()));
-			int cost = 1 + distance / Settings.COMMON.items.sojournerStaff.tilePerCostMultiplier.get();
+			int cost = 1 + distance / Config.COMMON.items.sojournerStaff.tilePerCostMultiplier.get();
 
 			Item torchItem = torch.getItem();
-			boolean result = removeItemFromInternalStorage(staff, torchItem, cost, false, player);
-			if (result && torchItem != Items.TORCH && getInternalStorageItemCount(staff, torchItem) <= 0) {
-				removeItemTagInInternalStorage(staff, torchItem);
-				cycleTorchMode(staff, false);
+			int torchIndex = getCurrentTorchIndex(staff);
+			if (torchItem == Items.TORCH) {
+				return getFromHandler(staff, handler -> handler.extractItem(torchIndex, cost, false)).getCount() > 0;
+			} else {
+				return getFromHandler(staff, handler -> handler.extractItemAndRemoveSlotIfEmpty(torchIndex, cost,
+						() -> cycleTorchMode(staff, false), false).getCount() > 0);
 			}
-			return result;
 		}
 		return true;
 	}
 
+	public boolean removeTorch(ItemStack stack) {
+		return getFromHandler(stack, handler -> !handler.extractItem(TORCH_SLOT, 1, false).isEmpty());
+	}
+
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		if (!player.isShiftKeyDown()) {
-			HitResult rayTraceResult = longRayTrace(world, player);
+			HitResult rayTraceResult = longRayTrace(level, player);
 			if (rayTraceResult.getType() == HitResult.Type.BLOCK) {
 				placeTorch(new UseOnContext(player, hand, (BlockHitResult) rayTraceResult));
 			} else {
 				ItemStack staff = player.getItemInHand(hand);
-				CompoundTag torchTag = getCurrentTorchTag(staff);
-				ItemStack torch = getItem(torchTag);
-				int count = torchTag.getInt(QUANTITY_TAG);
-				torch.setCount(Math.min(count, torch.getMaxStackSize()));
-				player.getCapability(ForgeCapabilities.ITEM_HANDLER, Direction.UP).ifPresent(playerInventory -> {
-					int inserted = InventoryHelper.insertIntoInventory(torch, playerInventory);
-					removeItemFromInternalStorage(staff, torch.getItem(), inserted, false, player);
-				});
+				ItemStack torch = getCurrentTorch(staff);
+				int inserted = InventoryHelper.insertIntoInventory(torch, InventoryHelper.getMainInventoryItemHandlerFrom(player));
+				if (inserted > 0) {
+					runOnHandler(staff, handler -> handler.extractItemAndRemoveSlotIfEmpty(getCurrentTorchIndex(staff), inserted, false));
+				}
 			}
 		}
-		return super.use(world, player, hand);
+		return super.use(level, player, hand);
 	}
 
-	private HitResult longRayTrace(Level worldIn, Player player) {
+	private HitResult longRayTrace(Level level, Player player) {
 		float f = player.getXRot();
 		float f1 = player.getYRot();
 		Vec3 vec3d = player.getEyePosition(1.0F);
@@ -244,8 +224,24 @@ public class SojournerStaffItem extends ToggleableItem implements IScrollableIte
 		float f5 = Mth.sin(-f * ((float) Math.PI / 180F));
 		float f6 = f3 * f4;
 		float f7 = f2 * f4;
-		double d0 = Settings.COMMON.items.sojournerStaff.maxRange.get();
+		double d0 = Config.COMMON.items.sojournerStaff.maxRange.get();
 		Vec3 vec3d1 = vec3d.add(f6 * d0, f5 * d0, f7 * d0);
-		return worldIn.clip(new ClipContext(vec3d, vec3d1, ClipContext.Block.OUTLINE, ClipContext.Fluid.ANY, player));
+		return level.clip(new ClipContext(vec3d, vec3d1, ClipContext.Block.OUTLINE, ClipContext.Fluid.ANY, player));
+	}
+
+	@Override
+	protected boolean isItemValidForContainerSlot(int slot, ItemStack stack) {
+		if (stack.isEmpty()) {
+			return true;
+		}
+		if (slot == TORCH_SLOT) {
+			return stack.is(Items.TORCH);
+		}
+		return Config.COMMON.items.sojournerStaff.isTorch(stack);
+	}
+
+	@Override
+	protected int getContainerSlotLimit(int slot) {
+		return Config.COMMON.items.sojournerStaff.maxCapacityPerItemType.get();
 	}
 }

@@ -1,20 +1,17 @@
 package reliquary.items;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraft.world.item.alchemy.PotionContents;
 import reliquary.items.util.IPotionItem;
-import reliquary.reference.Settings;
+import reliquary.reference.Config;
 import reliquary.util.TooltipBuilder;
 import reliquary.util.potions.PotionEssence;
+import reliquary.util.potions.PotionHelper;
 import reliquary.util.potions.PotionMap;
-import reliquary.util.potions.XRPotionHelper;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -31,9 +28,8 @@ public class BulletItem extends ItemBase implements IPotionItem {
 	}
 
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void appendHoverText(ItemStack stack, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
-		TooltipBuilder tooltipBuilder = TooltipBuilder.of(tooltip);
+	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+		TooltipBuilder tooltipBuilder = TooltipBuilder.of(tooltip, context);
 		if (hasTooltip) {
 			tooltipBuilder.itemTooltip(this);
 		}
@@ -42,27 +38,27 @@ public class BulletItem extends ItemBase implements IPotionItem {
 
 	@Override
 	public void addCreativeTabItems(Consumer<ItemStack> itemConsumer) {
-		if (Boolean.TRUE.equals(Settings.COMMON.disable.disableHandgun.get())) {
+		if (Boolean.TRUE.equals(Config.COMMON.disable.disableHandgun.get())) {
 			return;
 		}
 
 		itemConsumer.accept(new ItemStack(this));
 
-		if (!addPotionBulletsInItemGroup || Boolean.TRUE.equals(Settings.COMMON.disable.disablePotions.get())) {
+		if (!addPotionBulletsInItemGroup || Boolean.TRUE.equals(Config.COMMON.disable.disablePotions.get())) {
 			return;
 		}
 
 		for (PotionEssence essence : PotionMap.uniquePotionEssences) {
 			ItemStack bullet = new ItemStack(this);
-			XRPotionHelper.addPotionEffectsToStack(bullet, XRPotionHelper.changePotionEffectsDuration(essence.getEffects(), 0.2F));
+			PotionHelper.addPotionContentsToStack(bullet, PotionHelper.changePotionEffectsDuration(essence.getPotionContents(), 0.2F));
 
 			itemConsumer.accept(bullet);
 		}
 	}
 
 	@Override
-	public List<MobEffectInstance> getEffects(ItemStack stack) {
-		return XRPotionHelper.getPotionEffectsFromStack(stack);
+	public PotionContents getPotionContents(ItemStack stack) {
+		return stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
 	}
 
 	public int getColor() {

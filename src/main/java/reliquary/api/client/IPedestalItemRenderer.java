@@ -5,5 +5,5 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import reliquary.blocks.tile.PedestalBlockEntity;
 
 public interface IPedestalItemRenderer {
-	void doRender(PedestalBlockEntity te, float partialTicks, PoseStack matrixStack, MultiBufferSource buffer, int packedLight, int packedOverlay);
+	void doRender(PedestalBlockEntity te, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int packedOverlay);
 }
