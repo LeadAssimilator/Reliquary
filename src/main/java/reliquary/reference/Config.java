@@ -355,7 +355,7 @@ public class Config {
 			public final DestructionCatalystSettings destructionCatalyst;
 
 			public static class DestructionCatalystSettings {
-				public final ConfigValue<List<String>> mundaneBlocks;
+				public final ConfigValue<List<? extends String>> mundaneBlocks;
 				public final IntValue gunpowderCost;
 				public final IntValue gunpowderWorth;
 				public final IntValue gunpowderLimit;
@@ -368,7 +368,7 @@ public class Config {
 
 					mundaneBlocks = builder
 							.comment("List of mundane blocks the catalyst will break")
-							.define("mundaneBlocks", getMundaneBlocksDefault());
+							.defineListAllowEmpty("mundaneBlocks", getMundaneBlocksDefault(), s -> s instanceof String);
 
 					gunpowderCost = builder
 							.comment("Number of gunpowder it costs per catalyst use")
